@@ -1332,6 +1332,87 @@ async def seed_database():
         "default_pin": "1234"
     }
 
+@api_router.post("/seed-shifts")
+async def seed_shifts():
+    """Seed sample shifts for testing"""
+    # Get active staff employees
+    employees = await db.employees.find({
+        "status": "active",
+        "role": "staff"
+    }, {"_id": 0}).to_list(100)
+    
+    if not employees:
+        return {"success": False, "message": "No employees found. Run /api/seed first."}
+    
+    care_home = await db.care_homes.find_one({}, {"_id": 0})
+    if not care_home:
+        return {"success": False, "message": "No care home found"}
+    
+    # Clear existing shifts
+    await db.shifts.delete_many({})
+    
+    today = datetime.now(timezone.utc).date()
+    shifts_created = 0
+    
+    # Create shifts for the next 14 days
+    shift_patterns = [
+        ("07:00", "15:00"),  # Early
+        ("15:00", "23:00"),  # Late
+        ("23:00", "07:00"),  # Night
+    ]
+    
+    for day_offset in range(-3, 15):  # Past 3 days and next 14 days
+        shift_date = (today + timedelta(days=day_offset)).isoformat()
+        
+        # Assign shifts to different employees
+        for i, emp in enumerate(employees[:10]):  # First 10 staff
+            pattern_idx = (i + day_offset) % 3
+            
+            # Skip some days to simulate days off
+            if (i + day_offset) % 5 == 0:
+                continue
+            
+            start_time, end_time = shift_patterns[pattern_idx]
+            
+            shift = Shift(
+                employee_id=emp["id"],
+                care_home_id=care_home["id"],
+                shift_date=shift_date,
+                start_time=start_time,
+                end_time=end_time,
+                shift_type="regular",
+                status="scheduled" if day_offset >= 0 else "completed"
+            )
+            await db.shifts.insert_one(serialize_datetime(shift.model_dump()))
+            shifts_created += 1
+    
+    # Create a sample swap request
+    if employees:
+        emp = employees[0]
+        today_shift = await db.shifts.find_one({
+            "employee_id": emp["id"],
+            "shift_date": today.isoformat()
+        }, {"_id": 0})
+        
+        if today_shift:
+            sample_swap = ShiftSwapRequest(
+                requester_id=emp["id"],
+                requester_name=f"{emp['first_name']} {emp['last_name']}",
+                original_shift_id=today_shift["id"],
+                shift_date=today_shift["shift_date"],
+                shift_start=today_shift["start_time"],
+                shift_end=today_shift["end_time"],
+                reason="Family commitment",
+                care_home_id=care_home["id"]
+            )
+            await db.shift_swaps.insert_one(serialize_datetime(sample_swap.model_dump()))
+    
+    return {
+        "success": True,
+        "shifts_created": shifts_created,
+        "message": "Shifts seeded successfully"
+    }
+
 @api_router.get("/")
 async def root():
     return {"message": "CareHome Clocking System API", "version": "1.0.0"}
