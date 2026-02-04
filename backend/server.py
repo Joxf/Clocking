@@ -108,8 +108,55 @@ class ShiftSwapRequest(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     requester_id: str
-    target_id: str
-    shift_date: datetime
+    requester_name: Optional[str] = None
+    target_id: Optional[str] = None  # Can be None for open swaps
+    target_name: Optional[str] = None
+    original_shift_id: str
+    shift_date: str  # Date string YYYY-MM-DD
+    shift_start: str  # Time string HH:MM
+    shift_end: str
+    reason: Optional[str] = None
+    status: str = "open"  # open, accepted, completed, cancelled
+    accepted_by: Optional[str] = None
+    accepted_by_name: Optional[str] = None
+    care_home_id: str
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Shift(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    employee_id: str
+    care_home_id: str
+    shift_date: str  # Date string YYYY-MM-DD
+    start_time: str  # Time string HH:MM
+    end_time: str
+    shift_type: str = "regular"  # regular, overtime, on_call
+    status: str = "scheduled"  # scheduled, completed, missed, swapped
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class LeaveRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    employee_id: str
+    care_home_id: str
+    leave_type: str  # annual, sick, unpaid, compassionate, maternity, paternity
+    start_date: str  # Date string YYYY-MM-DD
+    end_date: str
+    reason: Optional[str] = None
+    status: str = "pending"  # pending, approved, rejected, cancelled
+    approved_by: Optional[str] = None
+    sick_note_provided: bool = False
+    notes: Optional[str] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class DayRequest(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    employee_id: str
+    care_home_id: str
+    request_type: str  # day_on, day_off
+    requested_date: str  # Date string YYYY-MM-DD
     reason: Optional[str] = None
     status: str = "pending"  # pending, approved, rejected
     approved_by: Optional[str] = None
