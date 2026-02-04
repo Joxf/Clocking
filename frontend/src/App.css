@@ -32,3 +32,27 @@
         transform: rotate(360deg);
     }
 }
+
+/* QR Scanner styles */
+#qr-reader {
+    border: none !important;
+}
+
+#qr-reader video {
+    border-radius: 8px;
+}
+
+#qr-reader__scan_region {
+    min-height: 300px;
+}
+
+#qr-reader__dashboard {
+    display: none !important;
+}
+
+/* Hide html5-qrcode branding */
+#qr-reader__header_message,
+#qr-reader__dashboard_section_csr,
+#qr-reader__dashboard_section_fsr {
+    display: none !important;
+}

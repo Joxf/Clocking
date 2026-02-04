@@ -1,53 +1,111 @@
-import { useEffect } from "react";
+import React, { useEffect } from "react";
 import "@/App.css";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import axios from "axios";
+import "@/index.css";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { AuthProvider, useAuth } from "./context/AuthContext";
+import { Toaster } from "sonner";
 
-const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
-const API = `${BACKEND_URL}/api`;
+// Pages
+import ScanLogin from "./pages/ScanLogin";
+import PinEntry from "./pages/PinEntry";
+import StaffDashboard from "./pages/StaffDashboard";
+import ManagerDashboard from "./pages/ManagerDashboard";
+import AdminDashboard from "./pages/AdminDashboard";
 
-const Home = () => {
-  const helloWorldApi = async () => {
-    try {
-      const response = await axios.get(`${API}/`);
-      console.log(response.data.message);
-    } catch (e) {
-      console.error(e, `errored out requesting / api`);
-    }
-  };
-
-  useEffect(() => {
-    helloWorldApi();
-  }, []);
-
-  return (
-    <div>
-      <header className="App-header">
-        <a
-          className="App-link"
-          href="https://emergent.sh"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <img src="https://avatars.githubusercontent.com/in/1201222?s=120&u=2686cf91179bbafbc7a71bfbc43004cf9ae1acea&v=4" />
-        </a>
-        <p className="mt-5">Building something incredible ~!</p>
-      </header>
-    </div>
-  );
+// Protected Route Component
+const ProtectedRoute = ({ children, allowedRoles }) => {
+  const { user, loading } = useAuth();
+  
+  if (loading) {
+    return (
+      <div className="kiosk-container">
+        <div className="frappe-spinner"></div>
+      </div>
+    );
+  }
+  
+  if (!user) {
+    return <Navigate to="/" replace />;
+  }
+  
+  if (allowedRoles && !allowedRoles.includes(user.role)) {
+    // Redirect to appropriate dashboard based on role
+    if (user.role === 'admin') return <Navigate to="/admin" replace />;
+    if (user.role === 'manager') return <Navigate to="/manager" replace />;
+    return <Navigate to="/staff" replace />;
+  }
+  
+  return children;
 };
+
+// Main App Component
+function AppContent() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Public routes - Kiosk entry flow */}
+        <Route path="/" element={<ScanLogin />} />
+        <Route path="/pin" element={<PinEntry />} />
+        
+        {/* Staff Dashboard */}
+        <Route
+          path="/staff"
+          element={
+            <ProtectedRoute allowedRoles={['staff', 'manager', 'admin']}>
+              <StaffDashboard />
+            </ProtectedRoute>
+          }
+        />
+        
+        {/* Manager Dashboard */}
+        <Route
+          path="/manager"
+          element={
+            <ProtectedRoute allowedRoles={['manager', 'admin']}>
+              <ManagerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/manager/*"
+          element={
+            <ProtectedRoute allowedRoles={['manager', 'admin']}>
+              <ManagerDashboard />
+            </ProtectedRoute>
+          }
+        />
+        
+        {/* Admin Dashboard */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/*"
+          element={
+            <ProtectedRoute allowedRoles={['admin']}>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
+        
+        {/* Catch all - redirect to scan login */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
 
 function App() {
   return (
-    <div className="App">
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Home />}>
-            <Route index element={<Home />} />
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </div>
+    <AuthProvider>
+      <AppContent />
+      <Toaster position="top-right" />
+    </AuthProvider>
   );
 }
 
