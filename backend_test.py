@@ -447,7 +447,10 @@ class CareHomeAPITester:
         # Test 2: Database Seeding
         seed_success, seed_data = self.test_seed_database()
 
-        # Test 3: Employee Lookups (Demo employees)
+        # Test 3: Seed Shifts for testing
+        self.test_seed_shifts()
+
+        # Test 4: Employee Lookups (Demo employees)
         demo_employees = ["ADM001", "MGR001", "NRS001"]
         employee_data = {}
         
@@ -456,26 +459,76 @@ class CareHomeAPITester:
             if success:
                 employee_data[emp_code] = data
 
-        # Test 4: PIN Validation - Valid PIN (1234)
+        # Test 5: PIN Validation - Valid PIN (1234) for Staff
+        staff_token = None
+        if "NRS001" in employee_data:
+            staff_id = employee_data["NRS001"]["id"]
+            success, auth_data = self.test_pin_validation(staff_id, "1234", True)
+            if success:
+                staff_token = self.token
+
+        # Test 6: PIN Validation - Invalid PIN
+        if "NRS001" in employee_data:
+            staff_id = employee_data["NRS001"]["id"]
+            self.test_pin_validation(staff_id, "9999", False)
+
+        # Test 7: Staff Profile Features (with staff token)
+        if staff_token:
+            self.token = staff_token
+            self.test_staff_profile()
+            
+            # Test My Rota
+            rota_success, rota_data = self.test_my_rota()
+            
+            # Test Today's Shift
+            shift_success, shift_data = self.test_today_shift()
+            
+            # Test Shift Swaps (staff should see them)
+            self.test_shift_swaps_staff_only("staff")
+            
+            # Test Create Shift Swap (if we have shifts)
+            if rota_success and rota_data.get('shifts'):
+                shifts = rota_data['shifts']
+                if shifts:
+                    first_shift = shifts[0]
+                    self.test_create_shift_swap(first_shift['id'])
+            
+            # Test Leave Requests
+            self.test_leave_requests()
+            self.test_create_leave_request()
+            
+            # Test Day Requests
+            self.test_day_requests()
+            self.test_create_day_request()
+            
+            # Test Colleagues
+            self.test_colleagues()
+
+        # Test 8: Manager/Admin tests - PIN Validation for Admin
+        admin_token = None
         if "ADM001" in employee_data:
             admin_id = employee_data["ADM001"]["id"]
             success, auth_data = self.test_pin_validation(admin_id, "1234", True)
+            if success:
+                admin_token = self.token
 
-        # Test 5: PIN Validation - Invalid PIN
-        if "ADM001" in employee_data:
-            admin_id = employee_data["ADM001"]["id"]
-            self.test_pin_validation(admin_id, "9999", False)
+        # Test 9: Admin/Manager specific tests
+        if admin_token:
+            self.token = admin_token
+            
+            # Dashboard Stats (requires admin/manager token)
+            self.test_dashboard_stats()
+            
+            # Attendance Status
+            self.test_attendance_status()
+            
+            # Today's Attendance (admin/manager only)
+            self.test_today_attendance()
+            
+            # Test Shift Swaps (admin/manager should get empty list)
+            self.test_shift_swaps_staff_only("admin")
 
-        # Test 6: Dashboard Stats (requires admin/manager token)
-        self.test_dashboard_stats()
-
-        # Test 7: Attendance Status
-        self.test_attendance_status()
-
-        # Test 8: Today's Attendance (admin/manager only)
-        self.test_today_attendance()
-
-        # Test 9: Logout
+        # Test 10: Logout
         self.test_logout()
 
         # Print Summary
