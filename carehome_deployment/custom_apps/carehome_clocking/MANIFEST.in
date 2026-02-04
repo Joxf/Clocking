@@ -1,0 +1,17 @@
+include MANIFEST.in
+include requirements.txt
+include *.json
+include *.md
+include *.py
+include *.txt
+recursive-include carehome_clocking *.css
+recursive-include carehome_clocking *.html
+recursive-include carehome_clocking *.ico
+recursive-include carehome_clocking *.js
+recursive-include carehome_clocking *.json
+recursive-include carehome_clocking *.md
+recursive-include carehome_clocking *.png
+recursive-include carehome_clocking *.py
+recursive-include carehome_clocking *.svg
+recursive-include carehome_clocking *.txt
+recursive-include carehome_clocking *.xml
