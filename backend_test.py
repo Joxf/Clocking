@@ -181,6 +181,260 @@ class CareHomeAPITester:
             self.log_test("Logout", False, str(e))
             return False
 
+    def test_seed_shifts(self):
+        """Test shift seeding for testing"""
+        try:
+            response = requests.post(f"{self.api_url}/seed-shifts")
+            success = response.status_code == 200
+            details = f"Status: {response.status_code}"
+            if success:
+                data = response.json()
+                details += f", Shifts created: {data.get('shifts_created', 'N/A')}"
+            self.log_test("Seed Shifts", success, details)
+            return success
+        except Exception as e:
+            self.log_test("Seed Shifts", False, str(e))
+            return False
+
+    def test_staff_profile(self):
+        """Test staff profile endpoint"""
+        if not self.token:
+            self.log_test("Staff Profile", False, "No authentication token")
+            return False
+        
+        try:
+            response = requests.get(f"{self.api_url}/staff/profile",
+                                  headers={"Authorization": f"Bearer {self.token}"})
+            success = response.status_code == 200
+            details = f"Status: {response.status_code}"
+            if success:
+                data = response.json()
+                employee = data.get('employee', {})
+                leave_balance = data.get('leave_balance', {})
+                details += f", Employee: {employee.get('first_name', 'N/A')}, Leave remaining: {leave_balance.get('annual_remaining', 'N/A')}"
+            self.log_test("Staff Profile", success, details)
+            return success
+        except Exception as e:
+            self.log_test("Staff Profile", False, str(e))
+            return False
+
+    def test_my_rota(self):
+        """Test my rota endpoint"""
+        if not self.token:
+            self.log_test("My Rota", False, "No authentication token")
+            return False
+        
+        try:
+            response = requests.get(f"{self.api_url}/shifts/my-rota",
+                                  headers={"Authorization": f"Bearer {self.token}"})
+            success = response.status_code == 200
+            details = f"Status: {response.status_code}"
+            if success:
+                data = response.json()
+                shifts = data.get('shifts', [])
+                details += f", Shifts: {len(shifts)}"
+            self.log_test("My Rota", success, details)
+            return success, response.json() if success else {}
+        except Exception as e:
+            self.log_test("My Rota", False, str(e))
+            return False, {}
+
+    def test_today_shift(self):
+        """Test today's shift endpoint"""
+        if not self.token:
+            self.log_test("Today's Shift", False, "No authentication token")
+            return False
+        
+        try:
+            response = requests.get(f"{self.api_url}/shifts/today",
+                                  headers={"Authorization": f"Bearer {self.token}"})
+            success = response.status_code == 200
+            details = f"Status: {response.status_code}"
+            if success:
+                data = response.json()
+                has_shift = data.get('has_shift', False)
+                can_clock = data.get('can_clock', False)
+                details += f", Has shift: {has_shift}, Can clock: {can_clock}"
+            self.log_test("Today's Shift", success, details)
+            return success, response.json() if success else {}
+        except Exception as e:
+            self.log_test("Today's Shift", False, str(e))
+            return False, {}
+
+    def test_shift_swaps_staff_only(self, user_role):
+        """Test shift swaps endpoint - should be staff-only"""
+        if not self.token:
+            self.log_test(f"Shift Swaps ({user_role})", False, "No authentication token")
+            return False
+        
+        try:
+            response = requests.get(f"{self.api_url}/shift-swaps",
+                                  headers={"Authorization": f"Bearer {self.token}"})
+            success = response.status_code == 200
+            details = f"Status: {response.status_code}"
+            if success:
+                data = response.json()
+                swaps = data.get('shift_swaps', [])
+                if user_role in ['manager', 'admin']:
+                    # Managers/admins should get empty list with message
+                    expected_empty = len(swaps) == 0
+                    details += f", Swaps: {len(swaps)} (Expected 0 for {user_role})"
+                    success = expected_empty
+                else:
+                    # Staff can see swaps
+                    details += f", Swaps: {len(swaps)}"
+            self.log_test(f"Shift Swaps Visibility ({user_role})", success, details)
+            return success
+        except Exception as e:
+            self.log_test(f"Shift Swaps ({user_role})", False, str(e))
+            return False
+
+    def test_create_shift_swap(self, shift_id):
+        """Test creating a shift swap request"""
+        if not self.token or not shift_id:
+            self.log_test("Create Shift Swap", False, "No authentication token or shift ID")
+            return False
+        
+        try:
+            response = requests.post(f"{self.api_url}/shift-swaps", 
+                                   json={
+                                       "original_shift_id": shift_id,
+                                       "reason": "Test swap request"
+                                   },
+                                   headers={"Authorization": f"Bearer {self.token}"})
+            success = response.status_code == 200
+            details = f"Status: {response.status_code}"
+            if success:
+                data = response.json()
+                details += f", Swap ID: {data.get('id', 'N/A')}"
+            self.log_test("Create Shift Swap", success, details)
+            return success, response.json() if success else {}
+        except Exception as e:
+            self.log_test("Create Shift Swap", False, str(e))
+            return False, {}
+
+    def test_leave_requests(self):
+        """Test leave requests endpoint"""
+        if not self.token:
+            self.log_test("Leave Requests", False, "No authentication token")
+            return False
+        
+        try:
+            response = requests.get(f"{self.api_url}/leave-requests",
+                                  headers={"Authorization": f"Bearer {self.token}"})
+            success = response.status_code == 200
+            details = f"Status: {response.status_code}"
+            if success:
+                data = response.json()
+                requests_list = data.get('leave_requests', [])
+                details += f", Requests: {len(requests_list)}"
+            self.log_test("Leave Requests", success, details)
+            return success
+        except Exception as e:
+            self.log_test("Leave Requests", False, str(e))
+            return False
+
+    def test_create_leave_request(self):
+        """Test creating a leave request"""
+        if not self.token:
+            self.log_test("Create Leave Request", False, "No authentication token")
+            return False
+        
+        try:
+            # Create a leave request for next month
+            from datetime import datetime, timedelta
+            start_date = (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d')
+            end_date = (datetime.now() + timedelta(days=32)).strftime('%Y-%m-%d')
+            
+            response = requests.post(f"{self.api_url}/leave-requests",
+                                   json={
+                                       "leave_type": "annual",
+                                       "start_date": start_date,
+                                       "end_date": end_date,
+                                       "reason": "Test annual leave"
+                                   },
+                                   headers={"Authorization": f"Bearer {self.token}"})
+            success = response.status_code == 200
+            details = f"Status: {response.status_code}"
+            if success:
+                data = response.json()
+                details += f", Request ID: {data.get('id', 'N/A')}"
+            self.log_test("Create Leave Request", success, details)
+            return success
+        except Exception as e:
+            self.log_test("Create Leave Request", False, str(e))
+            return False
+
+    def test_day_requests(self):
+        """Test day requests endpoint"""
+        if not self.token:
+            self.log_test("Day Requests", False, "No authentication token")
+            return False
+        
+        try:
+            response = requests.get(f"{self.api_url}/day-requests",
+                                  headers={"Authorization": f"Bearer {self.token}"})
+            success = response.status_code == 200
+            details = f"Status: {response.status_code}"
+            if success:
+                data = response.json()
+                requests_list = data.get('day_requests', [])
+                details += f", Requests: {len(requests_list)}"
+            self.log_test("Day Requests", success, details)
+            return success
+        except Exception as e:
+            self.log_test("Day Requests", False, str(e))
+            return False
+
+    def test_create_day_request(self):
+        """Test creating a day request"""
+        if not self.token:
+            self.log_test("Create Day Request", False, "No authentication token")
+            return False
+        
+        try:
+            from datetime import datetime, timedelta
+            request_date = (datetime.now() + timedelta(days=14)).strftime('%Y-%m-%d')
+            
+            response = requests.post(f"{self.api_url}/day-requests",
+                                   json={
+                                       "request_type": "day_off",
+                                       "requested_date": request_date,
+                                       "reason": "Test day off request"
+                                   },
+                                   headers={"Authorization": f"Bearer {self.token}"})
+            success = response.status_code == 200
+            details = f"Status: {response.status_code}"
+            if success:
+                data = response.json()
+                details += f", Request ID: {data.get('id', 'N/A')}"
+            self.log_test("Create Day Request", success, details)
+            return success
+        except Exception as e:
+            self.log_test("Create Day Request", False, str(e))
+            return False
+
+    def test_colleagues(self):
+        """Test colleagues endpoint"""
+        if not self.token:
+            self.log_test("Colleagues", False, "No authentication token")
+            return False
+        
+        try:
+            response = requests.get(f"{self.api_url}/staff/colleagues",
+                                  headers={"Authorization": f"Bearer {self.token}"})
+            success = response.status_code == 200
+            details = f"Status: {response.status_code}"
+            if success:
+                data = response.json()
+                colleagues = data.get('colleagues', [])
+                details += f", Colleagues: {len(colleagues)}"
+            self.log_test("Colleagues", success, details)
+            return success
+        except Exception as e:
+            self.log_test("Colleagues", False, str(e))
+            return False
+
     def run_comprehensive_test(self):
         """Run all backend tests"""
         print("🚀 Starting CareHome Clocking System Backend Tests")
