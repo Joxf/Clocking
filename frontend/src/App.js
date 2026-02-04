@@ -9,6 +9,7 @@ import { Toaster } from "sonner";
 import ScanLogin from "./pages/ScanLogin";
 import PinEntry from "./pages/PinEntry";
 import StaffDashboard from "./pages/StaffDashboard";
+import StaffProfile from "./pages/StaffProfile";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 
@@ -47,12 +48,22 @@ function AppContent() {
         <Route path="/" element={<ScanLogin />} />
         <Route path="/pin" element={<PinEntry />} />
         
-        {/* Staff Dashboard */}
+        {/* Staff Dashboard (Clock Screen) */}
         <Route
           path="/staff"
           element={
             <ProtectedRoute allowedRoles={['staff', 'manager', 'admin']}>
               <StaffDashboard />
+            </ProtectedRoute>
+          }
+        />
+        
+        {/* Staff Profile Page */}
+        <Route
+          path="/staff/profile"
+          element={
+            <ProtectedRoute allowedRoles={['staff', 'manager', 'admin']}>
+              <StaffProfile />
             </ProtectedRoute>
           }
         />
