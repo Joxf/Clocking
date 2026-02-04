@@ -9,7 +9,7 @@ Build a CareHome Clocking system by cloning Frappe HRMS visual design and archit
 - Kiosk-friendly UI with large touch targets
 
 ## User Personas
-1. **Staff** (Nurses, Carers, Kitchen, Maintenance) - Clock in/out, view status
+1. **Staff** (Nurses, Carers, Kitchen, Maintenance) - Clock in/out, view status, manage leave/swaps
 2. **Manager** - View attendance, approve requests, staff oversight
 3. **Admin** - Full system access, device management, staff enrollment
 
@@ -47,6 +47,39 @@ Build a CareHome Clocking system by cloning Frappe HRMS visual design and archit
 - 60-second idle auto-logout
 - Protected routes with role-based access
 
+### Phase 2 - Staff Profile Features (Feb 4, 2026)
+**Backend Additions:**
+- Shift/Rota management system
+- Leave request system (annual, sick, unpaid, compassionate, maternity, paternity)
+- Day request system (day on/off)
+- Enhanced shift swap system (staff-only visibility)
+- Staff profile endpoint with leave balance tracking
+- Today's shift endpoint with clocking window validation
+- 28 days annual leave entitlement tracking
+
+**Frontend - Staff Profile Page:**
+- Overview tab with leave balance, upcoming shifts, pending requests
+- My Rota tab showing 4-week schedule with swap buttons
+- Shift Swaps tab (staff-only visibility):
+  - Available swaps from colleagues
+  - Own swap requests with cancel option
+- Annual Leave tab:
+  - Leave balance display (Total/Used/Remaining)
+  - Request Leave modal with date picker
+  - Leave history table
+- Sick Leave tab:
+  - Record Absence button
+  - Sick leave history
+- Day Requests tab:
+  - Request day on/off functionality
+  - Request history
+
+**Clock-in Logic Enhancement:**
+- Clock in/out only visible when within shift window
+- Clocking window: 30 minutes before shift to 2 hours after
+- Outside window: Redirect to Staff Profile page
+- Shift info displayed when shift exists
+
 **Test Data (Comber Home):**
 - 1 Super Admin (Sarah Wilson - ADM001)
 - 1 Manager (Michael O'Brien - MGR001)
@@ -54,35 +87,37 @@ Build a CareHome Clocking system by cloning Frappe HRMS visual design and archit
 - 2 Agency Staff
 - 2 Inactive/Leavers
 - 2 On Leave
+- 144 shifts seeded across 17 days
 - Default PIN: 1234 for all accounts
 
 ## Prioritized Backlog
 
-### P0 - Critical
+### P0 - Critical (COMPLETED)
 - [x] QR + PIN authentication flow
 - [x] Role-based dashboards
 - [x] Clock in/out functionality
 - [x] Offline indicator
+- [x] Staff Profile page with leave/rota/swaps
 
 ### P1 - High Priority (Next Phase)
 - [ ] Mobile authenticator app (React Native)
 - [ ] Real QR code generation with rotating TOTP
+- [ ] Manager approval workflow for leave requests
+- [ ] Email notifications for approvals
 - [ ] Device registration flow
-- [ ] Shift swap request workflow
-- [ ] Email notifications
 
 ### P2 - Medium Priority
-- [ ] Leave request UI
 - [ ] Attendance reports/export
 - [ ] Multiple care homes support
 - [ ] Device heartbeat monitoring
 - [ ] Audit log viewer
+- [ ] Auto-scheduling/rota generation
 
 ### P3 - Future Enhancements
 - [ ] Payroll integration hooks
-- [ ] Rota/scheduling UI
 - [ ] Biometric fallback support
 - [ ] Multi-language support
+- [ ] Mobile-responsive dashboard
 
 ## Technical Architecture
 
@@ -122,6 +157,33 @@ Build a CareHome Clocking system by cloning Frappe HRMS visual design and archit
 - `GET /api/attendance/status` - Get current status
 - `GET /api/attendance/today` - Get today's attendance
 
+### Shifts & Rota
+- `GET /api/shifts/my-rota` - Get user's shifts (4 weeks)
+- `GET /api/shifts/today` - Get today's shift with clocking window
+
+### Leave Requests
+- `GET /api/leave-requests` - List leave requests
+- `POST /api/leave-requests` - Create leave request
+- `PUT /api/leave-requests/{id}/approve` - Approve (manager/admin)
+- `PUT /api/leave-requests/{id}/reject` - Reject (manager/admin)
+- `DELETE /api/leave-requests/{id}` - Cancel own request
+
+### Day Requests
+- `GET /api/day-requests` - List day requests
+- `POST /api/day-requests` - Create day request
+- `PUT /api/day-requests/{id}/approve` - Approve
+- `PUT /api/day-requests/{id}/reject` - Reject
+
+### Shift Swaps (Staff Only)
+- `GET /api/shift-swaps` - List swaps (empty for managers/admins)
+- `POST /api/shift-swaps` - Create swap request
+- `POST /api/shift-swaps/{id}/accept` - Accept swap
+- `POST /api/shift-swaps/{id}/cancel` - Cancel swap
+
+### Staff Profile
+- `GET /api/staff/profile` - Get comprehensive profile data
+- `GET /api/staff/colleagues` - Get colleagues list
+
 ### Dashboard
 - `GET /api/dashboard/stats` - Get statistics
 - `GET /api/employees` - List employees
@@ -129,6 +191,6 @@ Build a CareHome Clocking system by cloning Frappe HRMS visual design and archit
 
 ## Next Tasks
 1. Build React Native mobile authenticator app
-2. Implement real-time TOTP QR generation
-3. Add shift swap approval workflow
+2. Implement manager approval workflow for leave requests
+3. Add email notifications
 4. Create attendance reports with export
