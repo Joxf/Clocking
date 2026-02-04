@@ -11,7 +11,8 @@ import {
   Calendar,
   CheckCircle,
   XCircle,
-  AlertCircle
+  AlertCircle,
+  ArrowRight
 } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -22,6 +23,7 @@ const StaffDashboard = () => {
   const { user, token, logout, isOnline, offlineQueue, clockIn, clockOut } = useAuth();
   
   const [attendanceStatus, setAttendanceStatus] = useState(null);
+  const [shiftInfo, setShiftInfo] = useState(null);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
@@ -35,7 +37,7 @@ const StaffDashboard = () => {
       navigate('/');
       return;
     }
-    fetchAttendanceStatus();
+    fetchData();
   }, [user, token, navigate]);
 
   // Update current time every second
@@ -74,14 +76,16 @@ const StaffDashboard = () => {
     };
   }, []);
 
-  const fetchAttendanceStatus = async () => {
+  const fetchData = async () => {
     try {
-      const response = await axios.get(`${API}/attendance/status`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      setAttendanceStatus(response.data);
+      const [attendanceRes, shiftRes] = await Promise.all([
+        axios.get(`${API}/attendance/status`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API}/shifts/today`, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      setAttendanceStatus(attendanceRes.data);
+      setShiftInfo(shiftRes.data);
     } catch (err) {
-      console.error('Failed to fetch attendance:', err);
+      console.error('Failed to fetch data:', err);
     } finally {
       setLoading(false);
     }
@@ -91,7 +95,7 @@ const StaffDashboard = () => {
     setActionLoading(true);
     try {
       await clockIn();
-      await fetchAttendanceStatus();
+      await fetchData();
     } catch (err) {
       console.error('Clock in failed:', err);
     } finally {
@@ -103,7 +107,7 @@ const StaffDashboard = () => {
     setActionLoading(true);
     try {
       await clockOut();
-      await fetchAttendanceStatus();
+      await fetchData();
     } catch (err) {
       console.error('Clock out failed:', err);
     } finally {
@@ -115,6 +119,10 @@ const StaffDashboard = () => {
     await logout();
     navigate('/');
   }, [logout, navigate]);
+
+  const goToProfile = () => {
+    navigate('/staff/profile');
+  };
 
   const formatTime = (date) => {
     return date.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
@@ -148,6 +156,8 @@ const StaffDashboard = () => {
 
   const isClockedIn = attendanceStatus?.clocked_in && !attendanceStatus?.clocked_out;
   const isClockedOut = attendanceStatus?.clocked_out;
+  const canClock = shiftInfo?.can_clock || false;
+  const hasShift = shiftInfo?.has_shift || false;
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -183,6 +193,16 @@ const StaffDashboard = () => {
               <span>Session ends in {IDLE_TIMEOUT - idleTime}s</span>
             </div>
           )}
+
+          {/* Profile button */}
+          <button
+            data-testid="profile-btn"
+            onClick={goToProfile}
+            className="frappe-btn frappe-btn-secondary"
+          >
+            <User size={16} />
+            <span>My Profile</span>
+          </button>
 
           {/* Logout button */}
           <button
@@ -231,105 +251,171 @@ const StaffDashboard = () => {
             </div>
           </div>
 
-          {/* Status Card */}
-          <div className="frappe-card mb-6">
-            <div className="frappe-card-header flex items-center gap-2">
-              <Calendar size={18} />
-              <span>Today's Status</span>
-            </div>
-            <div className="frappe-card-content">
-              <div className="grid grid-cols-2 gap-4 mb-6">
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <div className="text-sm text-gray-500 mb-1">Clock In</div>
-                  <div className="text-lg font-semibold text-gray-900" data-testid="clock-in-time">
-                    {attendanceStatus?.clock_in_time 
-                      ? new Date(attendanceStatus.clock_in_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-                      : '--:--'}
+          {/* Shift Info Card */}
+          {hasShift && shiftInfo?.shift && (
+            <div className="frappe-card mb-6">
+              <div className="frappe-card-header flex items-center gap-2">
+                <Calendar size={18} />
+                <span>Today's Shift</span>
+              </div>
+              <div className="frappe-card-content">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-lg font-semibold text-gray-900">
+                      {shiftInfo.shift.start_time} - {shiftInfo.shift.end_time}
+                    </p>
+                    <p className="text-sm text-gray-500">{shiftInfo.shift.shift_type} shift</p>
                   </div>
-                </div>
-                <div className="p-4 bg-gray-50 rounded-lg">
-                  <div className="text-sm text-gray-500 mb-1">Clock Out</div>
-                  <div className="text-lg font-semibold text-gray-900" data-testid="clock-out-time">
-                    {attendanceStatus?.clock_out_time
-                      ? new Date(attendanceStatus.clock_out_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
-                      : '--:--'}
-                  </div>
+                  {canClock ? (
+                    <span className="frappe-badge frappe-badge-success">Within clocking window</span>
+                  ) : (
+                    <span className="frappe-badge frappe-badge-warning">Outside clocking window</span>
+                  )}
                 </div>
               </div>
+            </div>
+          )}
 
-              {/* Status Badge */}
-              <div className="flex items-center justify-center gap-2 mb-6">
-                {isClockedOut ? (
-                  <span className="frappe-badge frappe-badge-gray flex items-center gap-1">
-                    <CheckCircle size={14} />
-                    Shift Complete
-                  </span>
-                ) : isClockedIn ? (
-                  <span className="frappe-badge frappe-badge-success flex items-center gap-1">
-                    <CheckCircle size={14} />
-                    Currently Working
-                  </span>
+          {/* No Shift Today - Redirect to Profile */}
+          {!hasShift && (
+            <div className="frappe-card mb-6">
+              <div className="frappe-card-content text-center py-8">
+                <Calendar size={48} className="mx-auto mb-4 text-gray-300" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">No Shift Scheduled Today</h3>
+                <p className="text-gray-500 mb-4">You don't have a shift today. View your upcoming rota in your profile.</p>
+                <button
+                  onClick={goToProfile}
+                  className="frappe-btn frappe-btn-primary"
+                  data-testid="go-to-profile-btn"
+                >
+                  <span>Go to My Profile</span>
+                  <ArrowRight size={16} />
+                </button>
+              </div>
+            </div>
+          )}
+
+          {/* Status Card - Only show if has shift */}
+          {hasShift && (
+            <div className="frappe-card mb-6">
+              <div className="frappe-card-header flex items-center gap-2">
+                <Clock size={18} />
+                <span>Today's Status</span>
+              </div>
+              <div className="frappe-card-content">
+                <div className="grid grid-cols-2 gap-4 mb-6">
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <div className="text-sm text-gray-500 mb-1">Clock In</div>
+                    <div className="text-lg font-semibold text-gray-900" data-testid="clock-in-time">
+                      {attendanceStatus?.clock_in_time 
+                        ? new Date(attendanceStatus.clock_in_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                        : '--:--'}
+                    </div>
+                  </div>
+                  <div className="p-4 bg-gray-50 rounded-lg">
+                    <div className="text-sm text-gray-500 mb-1">Clock Out</div>
+                    <div className="text-lg font-semibold text-gray-900" data-testid="clock-out-time">
+                      {attendanceStatus?.clock_out_time
+                        ? new Date(attendanceStatus.clock_out_time).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+                        : '--:--'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Status Badge */}
+                <div className="flex items-center justify-center gap-2 mb-6">
+                  {isClockedOut ? (
+                    <span className="frappe-badge frappe-badge-gray flex items-center gap-1">
+                      <CheckCircle size={14} />
+                      Shift Complete
+                    </span>
+                  ) : isClockedIn ? (
+                    <span className="frappe-badge frappe-badge-success flex items-center gap-1">
+                      <CheckCircle size={14} />
+                      Currently Working
+                    </span>
+                  ) : (
+                    <span className="frappe-badge frappe-badge-warning flex items-center gap-1">
+                      <XCircle size={14} />
+                      Not Clocked In
+                    </span>
+                  )}
+                </div>
+
+                {/* Action Buttons - Only show if within clocking window */}
+                {canClock ? (
+                  <div className="flex gap-4">
+                    {!isClockedIn && !isClockedOut && (
+                      <button
+                        data-testid="clock-in-btn"
+                        onClick={handleClockIn}
+                        disabled={actionLoading}
+                        className="frappe-btn frappe-btn-primary frappe-btn-kiosk flex-1"
+                      >
+                        {actionLoading ? (
+                          <div className="frappe-spinner"></div>
+                        ) : (
+                          <>
+                            <Clock size={24} />
+                            <span>Clock In</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+
+                    {isClockedIn && !isClockedOut && (
+                      <button
+                        data-testid="clock-out-btn"
+                        onClick={handleClockOut}
+                        disabled={actionLoading}
+                        className="frappe-btn frappe-btn-kiosk flex-1"
+                        style={{ backgroundColor: '#EF4444', color: 'white', borderColor: '#EF4444' }}
+                      >
+                        {actionLoading ? (
+                          <div className="frappe-spinner"></div>
+                        ) : (
+                          <>
+                            <Clock size={24} />
+                            <span>Clock Out</span>
+                          </>
+                        )}
+                      </button>
+                    )}
+
+                    {isClockedOut && (
+                      <div className="flex-1 p-6 bg-green-50 rounded-lg text-center">
+                        <CheckCircle size={32} className="mx-auto mb-2 text-green-600" />
+                        <p className="text-green-700 font-medium">Your shift is complete!</p>
+                        <p className="text-green-600 text-sm">Have a great day.</p>
+                      </div>
+                    )}
+                  </div>
                 ) : (
-                  <span className="frappe-badge frappe-badge-warning flex items-center gap-1">
-                    <XCircle size={14} />
-                    Not Clocked In
-                  </span>
-                )}
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-4">
-                {!isClockedIn && !isClockedOut && (
-                  <button
-                    data-testid="clock-in-btn"
-                    onClick={handleClockIn}
-                    disabled={actionLoading}
-                    className="frappe-btn frappe-btn-primary frappe-btn-kiosk flex-1"
-                  >
-                    {actionLoading ? (
-                      <div className="frappe-spinner"></div>
-                    ) : (
-                      <>
-                        <Clock size={24} />
-                        <span>Clock In</span>
-                      </>
-                    )}
-                  </button>
-                )}
-
-                {isClockedIn && !isClockedOut && (
-                  <button
-                    data-testid="clock-out-btn"
-                    onClick={handleClockOut}
-                    disabled={actionLoading}
-                    className="frappe-btn frappe-btn-kiosk flex-1"
-                    style={{ backgroundColor: '#EF4444', color: 'white', borderColor: '#EF4444' }}
-                  >
-                    {actionLoading ? (
-                      <div className="frappe-spinner"></div>
-                    ) : (
-                      <>
-                        <Clock size={24} />
-                        <span>Clock Out</span>
-                      </>
-                    )}
-                  </button>
-                )}
-
-                {isClockedOut && (
-                  <div className="flex-1 p-6 bg-green-50 rounded-lg text-center">
-                    <CheckCircle size={32} className="mx-auto mb-2 text-green-600" />
-                    <p className="text-green-700 font-medium">Your shift is complete!</p>
-                    <p className="text-green-600 text-sm">Have a great day.</p>
+                  <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-center">
+                    <AlertCircle size={24} className="mx-auto mb-2 text-yellow-600" />
+                    <p className="text-yellow-700 font-medium">Outside Clocking Window</p>
+                    <p className="text-yellow-600 text-sm">
+                      You can clock in 30 minutes before your shift and up to 2 hours after it ends.
+                    </p>
                   </div>
                 )}
               </div>
             </div>
+          )}
+
+          {/* Quick Link to Profile */}
+          <div className="text-center">
+            <button
+              onClick={goToProfile}
+              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+            >
+              View leave requests, rota & shift swaps →
+            </button>
           </div>
 
           {/* Offline Queue Notice */}
           {offlineQueue.length > 0 && (
-            <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 text-sm">
+            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 text-sm">
               <div className="flex items-center gap-2 mb-2">
                 <WifiOff size={16} />
                 <strong>Offline Events Pending</strong>
