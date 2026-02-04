@@ -1,0 +1,126 @@
+{
+  "name": "Offline Punch Queue",
+  "module": "Carehome Clocking",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "naming_rule": "By fieldname",
+  "autoname": "field:offline_id",
+  "fields": [
+    {
+      "fieldname": "offline_id",
+      "fieldtype": "Data",
+      "label": "Offline ID",
+      "reqd": 1,
+      "unique": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "employee",
+      "fieldtype": "Link",
+      "label": "Employee",
+      "options": "Employee",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "employee_name",
+      "fieldtype": "Data",
+      "label": "Employee Name",
+      "fetch_from": "employee.employee_name",
+      "read_only": 1
+    },
+    {
+      "fieldname": "column_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "punch_type",
+      "fieldtype": "Select",
+      "label": "Punch Type",
+      "options": "IN\nOUT",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "timestamp_local",
+      "fieldtype": "Datetime",
+      "label": "Timestamp (Local)",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "section_device",
+      "fieldtype": "Section Break",
+      "label": "Device Info"
+    },
+    {
+      "fieldname": "device",
+      "fieldtype": "Link",
+      "label": "Kiosk Device",
+      "options": "Kiosk Device"
+    },
+    {
+      "fieldname": "care_home",
+      "fieldtype": "Link",
+      "label": "Care Home",
+      "options": "Care Home"
+    },
+    {
+      "fieldname": "location",
+      "fieldtype": "Data",
+      "label": "Location"
+    },
+    {
+      "fieldname": "column_break_2",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "sync_status",
+      "fieldtype": "Select",
+      "label": "Sync Status",
+      "options": "Pending\nSynced\nError",
+      "default": "Pending",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "synced_at",
+      "fieldtype": "Datetime",
+      "label": "Synced At",
+      "read_only": 1
+    },
+    {
+      "fieldname": "checkin_reference",
+      "fieldtype": "Link",
+      "label": "Checkin Reference",
+      "options": "Employee Checkin",
+      "read_only": 1
+    },
+    {
+      "fieldname": "error_message",
+      "fieldtype": "Small Text",
+      "label": "Error Message",
+      "read_only": 1
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1
+    },
+    {
+      "role": "HR Manager",
+      "read": 1,
+      "write": 1
+    },
+    {
+      "role": "Care Home Manager",
+      "read": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "track_changes": 1
+}

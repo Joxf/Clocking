@@ -1,0 +1,112 @@
+{
+  "name": "Kiosk Device",
+  "module": "Carehome Clocking",
+  "doctype": "DocType",
+  "engine": "InnoDB",
+  "naming_rule": "Expression",
+  "autoname": "KIOSK-.#####",
+  "fields": [
+    {
+      "fieldname": "device_name",
+      "fieldtype": "Data",
+      "label": "Device Name",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "care_home",
+      "fieldtype": "Link",
+      "label": "Care Home",
+      "options": "Care Home",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "location_name",
+      "fieldtype": "Data",
+      "label": "Location Name",
+      "description": "e.g., Main Entrance, Staff Room",
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "column_break_1",
+      "fieldtype": "Column Break"
+    },
+    {
+      "fieldname": "is_active",
+      "fieldtype": "Check",
+      "label": "Is Active",
+      "default": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "last_seen_at",
+      "fieldtype": "Datetime",
+      "label": "Last Seen At",
+      "read_only": 1
+    },
+    {
+      "fieldname": "offline_queue_size",
+      "fieldtype": "Int",
+      "label": "Offline Queue Size",
+      "read_only": 1,
+      "default": 0
+    },
+    {
+      "fieldname": "section_security",
+      "fieldtype": "Section Break",
+      "label": "Security"
+    },
+    {
+      "fieldname": "device_pin_hash",
+      "fieldtype": "Password",
+      "label": "Device PIN",
+      "description": "4-6 digit PIN for kiosk login"
+    },
+    {
+      "fieldname": "session_token",
+      "fieldtype": "Data",
+      "label": "Session Token",
+      "hidden": 1
+    },
+    {
+      "fieldname": "session_expires_at",
+      "fieldtype": "Datetime",
+      "label": "Session Expires At",
+      "hidden": 1
+    },
+    {
+      "fieldname": "section_override",
+      "fieldtype": "Section Break",
+      "label": "Manager Override"
+    },
+    {
+      "fieldname": "override_code_hash",
+      "fieldtype": "Password",
+      "label": "Manager Override Code"
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1
+    },
+    {
+      "role": "HR Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1
+    },
+    {
+      "role": "Care Home Manager",
+      "read": 1,
+      "write": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "track_changes": 1
+}
