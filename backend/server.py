@@ -212,6 +212,24 @@ class EmployeeCreate(BaseModel):
     employment_type: str = "permanent"
     status: str = "active"
 
+class LeaveRequestCreate(BaseModel):
+    leave_type: str
+    start_date: str
+    end_date: str
+    reason: Optional[str] = None
+
+class DayRequestCreate(BaseModel):
+    request_type: str
+    requested_date: str
+    reason: Optional[str] = None
+
+class ShiftSwapCreate(BaseModel):
+    original_shift_id: str
+    reason: Optional[str] = None
+
+class AcceptSwapRequest(BaseModel):
+    swap_id: str
+
 # ============ HELPERS ============
 
 def hash_pin(pin: str) -> str:
