@@ -65,7 +65,7 @@ body {
 
 @layer components {
     .kiosk-btn {
-        @apply h-20 text-xl font-semibold rounded-xl transition-all duration-150 active:scale-98;
+        @apply h-20 text-xl font-semibold rounded-xl transition-all duration-150;
     }
     
     .kiosk-input {
