@@ -39,8 +39,8 @@ const PinEntry = () => {
 
   const fetchEmployeeByCode = async (code) => {
     try {
-      // For demo mode, we'll get the employee ID from the backend via a lookup
-      const response = await axios.get(`${API}/employees/${code}`);
+      // For demo mode, we'll get the employee ID from the backend via public lookup
+      const response = await axios.get(`${API}/employees/lookup/${code}`);
       setEmployeeData({
         id: response.data.id,
         employee_id: response.data.employee_id,
