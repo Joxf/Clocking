@@ -1,0 +1,40 @@
+{% extends "templates/web.html" %}
+
+{% block title %}CareHome Clocking - Kiosk{% endblock %}
+
+{% block head_include %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<link rel="stylesheet" href="/assets/carehome_clocking/css/kiosk.css">
+<script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+{% endblock %}
+
+{% block page_content %}
+<div id="kiosk-container" data-testid="kiosk-container">
+    <!-- Content injected by JavaScript -->
+    <noscript>
+        <div style="padding: 2rem; text-align: center;">
+            <h1>JavaScript Required</h1>
+            <p>Please enable JavaScript to use the kiosk.</p>
+        </div>
+    </noscript>
+</div>
+
+<script src="/assets/carehome_clocking/js/kiosk.js"></script>
+{% endblock %}
+
+{% block style %}
+<style>
+body {
+    overflow: hidden !important;
+}
+.page-container, .main-section {
+    padding: 0 !important;
+    margin: 0 !important;
+}
+footer, .navbar, .web-footer {
+    display: none !important;
+}
+</style>
+{% endblock %}
