@@ -604,6 +604,18 @@ async def get_employee(employee_id: str, current_user: dict = Depends(get_curren
     
     return employee
 
+@api_router.get("/employees/lookup/{employee_code}")
+async def lookup_employee(employee_code: str):
+    """Public endpoint to lookup employee by code (for demo mode)"""
+    employee = await db.employees.find_one(
+        {"employee_id": employee_code, "status": "active"},
+        {"_id": 0, "pin_hash": 0, "totp_secret": 0}
+    )
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    
+    return employee
+
 @api_router.post("/employees")
 async def create_employee(employee: EmployeeCreate, current_user: dict = Depends(get_current_user)):
     """Create new employee (admin only)"""
