@@ -1,0 +1,9 @@
+{
+  "name": "carehome_clocking",
+  "title": "CareHome Clocking",
+  "description": "QR-based clocking system for care homes with mobile authenticator",
+  "publisher": "CareHome Systems",
+  "email": "support@carehome.example.com",
+  "version": "1.0.0",
+  "license": "MIT"
+}

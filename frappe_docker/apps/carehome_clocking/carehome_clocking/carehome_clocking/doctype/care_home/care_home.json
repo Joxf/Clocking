@@ -1,0 +1,75 @@
+{
+  "name": "Care Home",
+  "module": "Carehome Clocking",
+  "doctype": "DocType",
+  "naming_rule": "By fieldname",
+  "autoname": "field:care_home_name",
+  "fields": [
+    {
+      "fieldname": "care_home_name",
+      "fieldtype": "Data",
+      "label": "Care Home Name",
+      "reqd": 1,
+      "unique": 1
+    },
+    {
+      "fieldname": "company",
+      "fieldtype": "Link",
+      "label": "Company",
+      "options": "Company",
+      "reqd": 1
+    },
+    {
+      "fieldname": "address",
+      "fieldtype": "Text",
+      "label": "Address"
+    },
+    {
+      "fieldname": "timezone",
+      "fieldtype": "Select",
+      "label": "Timezone",
+      "options": "Europe/London\nEurope/Paris\nAmerica/New_York\nAmerica/Los_Angeles\nAsia/Singapore",
+      "default": "Europe/London"
+    },
+    {
+      "fieldname": "is_active",
+      "fieldtype": "Check",
+      "label": "Is Active",
+      "default": 1
+    },
+    {
+      "fieldname": "contact_email",
+      "fieldtype": "Data",
+      "label": "Contact Email",
+      "options": "Email"
+    },
+    {
+      "fieldname": "contact_phone",
+      "fieldtype": "Data",
+      "label": "Contact Phone"
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1,
+      "delete": 1
+    },
+    {
+      "role": "HR Manager",
+      "read": 1,
+      "write": 1,
+      "create": 1
+    },
+    {
+      "role": "Care Home Manager",
+      "read": 1,
+      "write": 1
+    }
+  ],
+  "sort_field": "modified",
+  "sort_order": "DESC",
+  "track_changes": 1
+}
