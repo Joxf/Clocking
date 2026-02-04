@@ -860,38 +860,392 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
 
 @api_router.get("/shift-swaps")
 async def list_shift_swaps(current_user: dict = Depends(get_current_user)):
-    """List shift swap requests"""
-    query = {"status": "pending"} if current_user["role"] in ["manager", "admin"] else {"requester_id": current_user["id"]}
-    swaps = await db.shift_swaps.find(query, {"_id": 0}).to_list(100)
-    return {"shift_swaps": swaps}
+    """List shift swap requests - STAFF ONLY can see open swaps"""
+    # Managers and admins should NOT see shift swap requests
+    if current_user["role"] in ["manager", "admin"]:
+        return {"shift_swaps": [], "message": "Shift swaps are managed between staff members"}
+    
+    # Staff can see all open swaps from their care home
+    swaps = await db.shift_swaps.find({
+        "care_home_id": current_user["care_home_id"],
+        "status": "open"
+    }, {"_id": 0}).to_list(100)
+    
+    # Also get their own swaps (any status)
+    my_swaps = await db.shift_swaps.find({
+        "requester_id": current_user["id"]
+    }, {"_id": 0}).to_list(100)
+    
+    # Combine and deduplicate
+    all_swaps = {s["id"]: s for s in swaps}
+    for s in my_swaps:
+        all_swaps[s["id"]] = s
+    
+    return {"shift_swaps": list(all_swaps.values())}
 
 @api_router.post("/shift-swaps")
-async def create_shift_swap(swap: dict, current_user: dict = Depends(get_current_user)):
-    """Create shift swap request"""
+async def create_shift_swap(request: ShiftSwapCreate, current_user: dict = Depends(get_current_user)):
+    """Create shift swap request (staff only)"""
+    if current_user["role"] in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Managers/admins cannot create shift swaps")
+    
+    # Get the shift
+    shift = await db.shifts.find_one({"id": request.original_shift_id}, {"_id": 0})
+    if not shift:
+        raise HTTPException(status_code=404, detail="Shift not found")
+    
+    if shift["employee_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Can only swap your own shifts")
+    
     new_swap = ShiftSwapRequest(
         requester_id=current_user["id"],
-        target_id=swap["target_id"],
-        shift_date=datetime.fromisoformat(swap["shift_date"]),
-        reason=swap.get("reason")
+        requester_name=f"{current_user['first_name']} {current_user['last_name']}",
+        original_shift_id=request.original_shift_id,
+        shift_date=shift["shift_date"],
+        shift_start=shift["start_time"],
+        shift_end=shift["end_time"],
+        reason=request.reason,
+        care_home_id=current_user["care_home_id"]
     )
     await db.shift_swaps.insert_one(serialize_datetime(new_swap.model_dump()))
     return {"success": True, "id": new_swap.id}
 
-@api_router.put("/shift-swaps/{swap_id}/approve")
-async def approve_shift_swap(swap_id: str, current_user: dict = Depends(get_current_user)):
-    """Approve shift swap (manager/admin only)"""
+@api_router.post("/shift-swaps/{swap_id}/accept")
+async def accept_shift_swap(swap_id: str, current_user: dict = Depends(get_current_user)):
+    """Accept a shift swap (staff only)"""
+    if current_user["role"] in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Managers/admins cannot accept shift swaps")
+    
+    swap = await db.shift_swaps.find_one({"id": swap_id}, {"_id": 0})
+    if not swap:
+        raise HTTPException(status_code=404, detail="Swap request not found")
+    
+    if swap["status"] != "open":
+        raise HTTPException(status_code=400, detail="Swap is no longer available")
+    
+    if swap["requester_id"] == current_user["id"]:
+        raise HTTPException(status_code=400, detail="Cannot accept your own swap request")
+    
+    # Update swap status
+    await db.shift_swaps.update_one(
+        {"id": swap_id},
+        {"$set": {
+            "status": "accepted",
+            "accepted_by": current_user["id"],
+            "accepted_by_name": f"{current_user['first_name']} {current_user['last_name']}"
+        }}
+    )
+    
+    # Update the original shift to the new employee
+    await db.shifts.update_one(
+        {"id": swap["original_shift_id"]},
+        {"$set": {
+            "employee_id": current_user["id"],
+            "status": "swapped",
+            "notes": f"Swapped from {swap['requester_name']}"
+        }}
+    )
+    
+    return {"success": True, "message": "Shift swap accepted"}
+
+@api_router.post("/shift-swaps/{swap_id}/cancel")
+async def cancel_shift_swap(swap_id: str, current_user: dict = Depends(get_current_user)):
+    """Cancel own shift swap request"""
+    swap = await db.shift_swaps.find_one({"id": swap_id}, {"_id": 0})
+    if not swap:
+        raise HTTPException(status_code=404, detail="Swap request not found")
+    
+    if swap["requester_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Can only cancel your own requests")
+    
+    if swap["status"] != "open":
+        raise HTTPException(status_code=400, detail="Cannot cancel - swap already processed")
+    
+    await db.shift_swaps.update_one(
+        {"id": swap_id},
+        {"$set": {"status": "cancelled"}}
+    )
+    
+    return {"success": True}
+
+# ============ SHIFT/ROTA ROUTES ============
+
+@api_router.get("/shifts/my-rota")
+async def get_my_rota(current_user: dict = Depends(get_current_user)):
+    """Get current user's shifts for the next 4 weeks"""
+    today = datetime.now(timezone.utc).date()
+    end_date = today + timedelta(days=28)
+    
+    shifts = await db.shifts.find({
+        "employee_id": current_user["id"],
+        "shift_date": {
+            "$gte": today.isoformat(),
+            "$lte": end_date.isoformat()
+        }
+    }, {"_id": 0}).sort("shift_date", 1).to_list(100)
+    
+    return {"shifts": shifts}
+
+@api_router.get("/shifts/today")
+async def get_today_shift(current_user: dict = Depends(get_current_user)):
+    """Check if user has a shift today and if within clocking window"""
+    today = datetime.now(timezone.utc).date().isoformat()
+    now = datetime.now(timezone.utc)
+    
+    shift = await db.shifts.find_one({
+        "employee_id": current_user["id"],
+        "shift_date": today,
+        "status": {"$in": ["scheduled", "swapped"]}
+    }, {"_id": 0})
+    
+    if not shift:
+        return {
+            "has_shift": False,
+            "can_clock": False,
+            "shift": None,
+            "message": "No shift scheduled for today"
+        }
+    
+    # Parse shift times
+    shift_start = datetime.strptime(f"{shift['shift_date']} {shift['start_time']}", "%Y-%m-%d %H:%M")
+    shift_end = datetime.strptime(f"{shift['shift_date']} {shift['end_time']}", "%Y-%m-%d %H:%M")
+    
+    # Make timezone aware
+    shift_start = shift_start.replace(tzinfo=timezone.utc)
+    shift_end = shift_end.replace(tzinfo=timezone.utc)
+    
+    # Allow clocking 30 minutes before shift start and up to 2 hours after shift end
+    clock_window_start = shift_start - timedelta(minutes=30)
+    clock_window_end = shift_end + timedelta(hours=2)
+    
+    can_clock = clock_window_start <= now <= clock_window_end
+    
+    return {
+        "has_shift": True,
+        "can_clock": can_clock,
+        "shift": shift,
+        "clock_window": {
+            "start": clock_window_start.isoformat(),
+            "end": clock_window_end.isoformat()
+        },
+        "message": "Within clocking window" if can_clock else "Outside clocking window"
+    }
+
+# ============ LEAVE REQUEST ROUTES ============
+
+@api_router.get("/leave-requests")
+async def get_leave_requests(current_user: dict = Depends(get_current_user)):
+    """Get leave requests - own requests for staff, all for managers"""
+    if current_user["role"] in ["manager", "admin"]:
+        requests = await db.leave_requests.find({
+            "care_home_id": current_user["care_home_id"]
+        }, {"_id": 0}).sort("created_at", -1).to_list(100)
+    else:
+        requests = await db.leave_requests.find({
+            "employee_id": current_user["id"]
+        }, {"_id": 0}).sort("created_at", -1).to_list(100)
+    
+    return {"leave_requests": requests}
+
+@api_router.post("/leave-requests")
+async def create_leave_request(request: LeaveRequestCreate, current_user: dict = Depends(get_current_user)):
+    """Create a new leave request"""
+    new_request = LeaveRequest(
+        employee_id=current_user["id"],
+        care_home_id=current_user["care_home_id"],
+        leave_type=request.leave_type,
+        start_date=request.start_date,
+        end_date=request.end_date,
+        reason=request.reason
+    )
+    await db.leave_requests.insert_one(serialize_datetime(new_request.model_dump()))
+    return {"success": True, "id": new_request.id}
+
+@api_router.put("/leave-requests/{request_id}/approve")
+async def approve_leave_request(request_id: str, current_user: dict = Depends(get_current_user)):
+    """Approve leave request (manager/admin only)"""
     if current_user["role"] not in ["manager", "admin"]:
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    result = await db.shift_swaps.update_one(
-        {"id": swap_id},
+    result = await db.leave_requests.update_one(
+        {"id": request_id},
         {"$set": {"status": "approved", "approved_by": current_user["id"]}}
     )
     
     if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Shift swap not found")
+        raise HTTPException(status_code=404, detail="Leave request not found")
     
     return {"success": True}
+
+@api_router.put("/leave-requests/{request_id}/reject")
+async def reject_leave_request(request_id: str, current_user: dict = Depends(get_current_user)):
+    """Reject leave request (manager/admin only)"""
+    if current_user["role"] not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    result = await db.leave_requests.update_one(
+        {"id": request_id},
+        {"$set": {"status": "rejected", "approved_by": current_user["id"]}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Leave request not found")
+    
+    return {"success": True}
+
+@api_router.delete("/leave-requests/{request_id}")
+async def cancel_leave_request(request_id: str, current_user: dict = Depends(get_current_user)):
+    """Cancel own leave request"""
+    leave_req = await db.leave_requests.find_one({"id": request_id}, {"_id": 0})
+    if not leave_req:
+        raise HTTPException(status_code=404, detail="Leave request not found")
+    
+    if leave_req["employee_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Can only cancel your own requests")
+    
+    if leave_req["status"] != "pending":
+        raise HTTPException(status_code=400, detail="Cannot cancel - already processed")
+    
+    await db.leave_requests.update_one(
+        {"id": request_id},
+        {"$set": {"status": "cancelled"}}
+    )
+    
+    return {"success": True}
+
+# ============ DAY REQUEST ROUTES ============
+
+@api_router.get("/day-requests")
+async def get_day_requests(current_user: dict = Depends(get_current_user)):
+    """Get day on/off requests"""
+    if current_user["role"] in ["manager", "admin"]:
+        requests = await db.day_requests.find({
+            "care_home_id": current_user["care_home_id"]
+        }, {"_id": 0}).sort("created_at", -1).to_list(100)
+    else:
+        requests = await db.day_requests.find({
+            "employee_id": current_user["id"]
+        }, {"_id": 0}).sort("created_at", -1).to_list(100)
+    
+    return {"day_requests": requests}
+
+@api_router.post("/day-requests")
+async def create_day_request(request: DayRequestCreate, current_user: dict = Depends(get_current_user)):
+    """Create a day on/off request"""
+    new_request = DayRequest(
+        employee_id=current_user["id"],
+        care_home_id=current_user["care_home_id"],
+        request_type=request.request_type,
+        requested_date=request.requested_date,
+        reason=request.reason
+    )
+    await db.day_requests.insert_one(serialize_datetime(new_request.model_dump()))
+    return {"success": True, "id": new_request.id}
+
+@api_router.put("/day-requests/{request_id}/approve")
+async def approve_day_request(request_id: str, current_user: dict = Depends(get_current_user)):
+    """Approve day request (manager/admin only)"""
+    if current_user["role"] not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    result = await db.day_requests.update_one(
+        {"id": request_id},
+        {"$set": {"status": "approved", "approved_by": current_user["id"]}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Day request not found")
+    
+    return {"success": True}
+
+@api_router.put("/day-requests/{request_id}/reject")
+async def reject_day_request(request_id: str, current_user: dict = Depends(get_current_user)):
+    """Reject day request (manager/admin only)"""
+    if current_user["role"] not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    result = await db.day_requests.update_one(
+        {"id": request_id},
+        {"$set": {"status": "rejected", "approved_by": current_user["id"]}}
+    )
+    
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Day request not found")
+    
+    return {"success": True}
+
+# ============ STAFF PROFILE ROUTES ============
+
+@api_router.get("/staff/profile")
+async def get_staff_profile(current_user: dict = Depends(get_current_user)):
+    """Get comprehensive staff profile data"""
+    today = datetime.now(timezone.utc).date()
+    
+    # Get leave balance (simplified - 28 days annual leave standard)
+    used_leave = await db.leave_requests.count_documents({
+        "employee_id": current_user["id"],
+        "leave_type": "annual",
+        "status": "approved"
+    })
+    
+    # Get pending requests counts
+    pending_leave = await db.leave_requests.count_documents({
+        "employee_id": current_user["id"],
+        "status": "pending"
+    })
+    
+    pending_day_requests = await db.day_requests.count_documents({
+        "employee_id": current_user["id"],
+        "status": "pending"
+    })
+    
+    open_swaps = await db.shift_swaps.count_documents({
+        "requester_id": current_user["id"],
+        "status": "open"
+    })
+    
+    # Get upcoming shifts count
+    upcoming_shifts = await db.shifts.count_documents({
+        "employee_id": current_user["id"],
+        "shift_date": {"$gte": today.isoformat()},
+        "status": {"$in": ["scheduled", "swapped"]}
+    })
+    
+    return {
+        "employee": {
+            "id": current_user["id"],
+            "employee_id": current_user["employee_id"],
+            "first_name": current_user["first_name"],
+            "last_name": current_user["last_name"],
+            "job_title": current_user["job_title"],
+            "employment_type": current_user["employment_type"],
+            "email": current_user.get("email"),
+            "phone": current_user.get("phone")
+        },
+        "leave_balance": {
+            "annual_total": 28,
+            "annual_used": used_leave,
+            "annual_remaining": max(0, 28 - used_leave)
+        },
+        "pending_counts": {
+            "leave_requests": pending_leave,
+            "day_requests": pending_day_requests,
+            "open_swaps": open_swaps
+        },
+        "upcoming_shifts": upcoming_shifts
+    }
+
+@api_router.get("/staff/colleagues")
+async def get_colleagues(current_user: dict = Depends(get_current_user)):
+    """Get list of colleagues for shift swap targeting"""
+    colleagues = await db.employees.find({
+        "care_home_id": current_user["care_home_id"],
+        "status": "active",
+        "role": "staff",
+        "id": {"$ne": current_user["id"]}
+    }, {"_id": 0, "pin_hash": 0, "totp_secret": 0}).to_list(100)
+    
+    return {"colleagues": colleagues}
 
 # ============ SEED DATA ============
 
