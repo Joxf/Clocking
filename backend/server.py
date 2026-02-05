@@ -1276,6 +1276,25 @@ async def create_leave_request(request: LeaveRequestCreate, current_user: dict =
         reason=request.reason
     )
     await db.leave_requests.insert_one(serialize_datetime(new_request.model_dump()))
+    
+    # Notify managers
+    managers = await db.employees.find({
+        "care_home_id": current_user["care_home_id"],
+        "role": {"$in": ["manager", "admin"]},
+        "status": "active"
+    }, {"_id": 0}).to_list(100)
+    
+    for mgr in managers:
+        notification = Notification(
+            care_home_id=current_user["care_home_id"],
+            recipient_id=mgr["id"],
+            title="New Leave Request",
+            content=f"{current_user['first_name']} {current_user['last_name']} requested {request.leave_type} leave from {request.start_date} to {request.end_date}",
+            notification_type="leave_request",
+            related_id=new_request.id
+        )
+        await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
+    
     return {"success": True, "id": new_request.id}
 
 @api_router.put("/leave-requests/{request_id}/approve")
@@ -1284,13 +1303,25 @@ async def approve_leave_request(request_id: str, current_user: dict = Depends(ge
     if current_user["role"] not in ["manager", "admin"]:
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    result = await db.leave_requests.update_one(
+    leave_req = await db.leave_requests.find_one({"id": request_id}, {"_id": 0})
+    if not leave_req:
+        raise HTTPException(status_code=404, detail="Leave request not found")
+    
+    await db.leave_requests.update_one(
         {"id": request_id},
         {"$set": {"status": "approved", "approved_by": current_user["id"]}}
     )
     
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Leave request not found")
+    # Notify employee
+    notification = Notification(
+        care_home_id=leave_req["care_home_id"],
+        recipient_id=leave_req["employee_id"],
+        title="Leave Request Approved",
+        content=f"Your {leave_req['leave_type']} leave request from {leave_req['start_date']} to {leave_req['end_date']} has been approved",
+        notification_type="leave_approved",
+        related_id=request_id
+    )
+    await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
     
     return {"success": True}
 
@@ -1300,13 +1331,25 @@ async def reject_leave_request(request_id: str, current_user: dict = Depends(get
     if current_user["role"] not in ["manager", "admin"]:
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    result = await db.leave_requests.update_one(
+    leave_req = await db.leave_requests.find_one({"id": request_id}, {"_id": 0})
+    if not leave_req:
+        raise HTTPException(status_code=404, detail="Leave request not found")
+    
+    await db.leave_requests.update_one(
         {"id": request_id},
         {"$set": {"status": "rejected", "approved_by": current_user["id"]}}
     )
     
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Leave request not found")
+    # Notify employee
+    notification = Notification(
+        care_home_id=leave_req["care_home_id"],
+        recipient_id=leave_req["employee_id"],
+        title="Leave Request Rejected",
+        content=f"Your {leave_req['leave_type']} leave request from {leave_req['start_date']} to {leave_req['end_date']} has been rejected",
+        notification_type="leave_rejected",
+        related_id=request_id
+    )
+    await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
     
     return {"success": True}
 
