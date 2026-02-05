@@ -909,15 +909,25 @@ async def get_dashboard_stats(current_user: dict = Depends(get_current_user)):
 
 @api_router.get("/shift-swaps")
 async def list_shift_swaps(current_user: dict = Depends(get_current_user)):
-    """List shift swap requests - STAFF ONLY can see open swaps"""
-    # Managers and admins should NOT see shift swap requests
-    if current_user["role"] in ["manager", "admin"]:
-        return {"shift_swaps": [], "message": "Shift swaps are managed between staff members"}
+    """List shift swap requests - Staff see swaps to accept, Managers see swaps to approve"""
     
-    # Staff can see all open swaps from their care home
-    swaps = await db.shift_swaps.find({
+    if current_user["role"] in ["manager", "admin"]:
+        # Managers see swaps pending approval
+        swaps = await db.shift_swaps.find({
+            "care_home_id": current_user["care_home_id"],
+            "status": "accepted_pending_approval"
+        }, {"_id": 0}).sort("created_at", -1).to_list(100)
+        return {"shift_swaps": swaps, "view_type": "approval"}
+    
+    # Staff can see open swaps from their care home (excluding their own)
+    open_swaps = await db.shift_swaps.find({
         "care_home_id": current_user["care_home_id"],
-        "status": "open"
+        "status": "pending_acceptance",
+        "requester_id": {"$ne": current_user["id"]},
+        "$or": [
+            {"swap_type": "open"},
+            {"target_id": current_user["id"]}  # Direct requests to them
+        ]
     }, {"_id": 0}).to_list(100)
     
     # Also get their own swaps (any status)
@@ -925,16 +935,22 @@ async def list_shift_swaps(current_user: dict = Depends(get_current_user)):
         "requester_id": current_user["id"]
     }, {"_id": 0}).to_list(100)
     
-    # Combine and deduplicate
-    all_swaps = {s["id"]: s for s in swaps}
-    for s in my_swaps:
-        all_swaps[s["id"]] = s
+    # Get direct requests sent to them
+    direct_to_me = await db.shift_swaps.find({
+        "target_id": current_user["id"],
+        "status": "pending_acceptance"
+    }, {"_id": 0}).to_list(100)
     
-    return {"shift_swaps": list(all_swaps.values())}
+    return {
+        "shift_swaps": my_swaps,
+        "available_swaps": open_swaps,
+        "direct_requests": direct_to_me,
+        "view_type": "staff"
+    }
 
 @api_router.post("/shift-swaps")
-async def create_shift_swap(request: ShiftSwapCreate, current_user: dict = Depends(get_current_user)):
-    """Create shift swap request (staff only)"""
+async def create_shift_swap(request: ShiftSwapCreateEnhanced, current_user: dict = Depends(get_current_user)):
+    """Create shift swap request with enhanced options"""
     if current_user["role"] in ["manager", "admin"]:
         raise HTTPException(status_code=403, detail="Managers/admins cannot create shift swaps")
     
@@ -946,56 +962,208 @@ async def create_shift_swap(request: ShiftSwapCreate, current_user: dict = Depen
     if shift["employee_id"] != current_user["id"]:
         raise HTTPException(status_code=403, detail="Can only swap your own shifts")
     
+    target_name = None
+    if request.target_id:
+        target_emp = await db.employees.find_one({"id": request.target_id}, {"_id": 0})
+        if target_emp:
+            target_name = f"{target_emp['first_name']} {target_emp['last_name']}"
+    
     new_swap = ShiftSwapRequest(
         requester_id=current_user["id"],
         requester_name=f"{current_user['first_name']} {current_user['last_name']}",
+        target_id=request.target_id,
+        target_name=target_name,
         original_shift_id=request.original_shift_id,
         shift_date=shift["shift_date"],
         shift_start=shift["start_time"],
         shift_end=shift["end_time"],
         reason=request.reason,
+        message_to_manager=request.message_to_manager,
+        swap_type=request.swap_type,
+        status="pending_acceptance" if request.swap_type != "manager_request" else "accepted_pending_approval",
         care_home_id=current_user["care_home_id"]
     )
     await db.shift_swaps.insert_one(serialize_datetime(new_swap.model_dump()))
+    
+    # Create notification for target or managers
+    if request.swap_type == "direct" and request.target_id:
+        # Notify the specific colleague
+        notification = Notification(
+            care_home_id=current_user["care_home_id"],
+            recipient_id=request.target_id,
+            title="Shift Swap Request",
+            content=f"{current_user['first_name']} {current_user['last_name']} wants to swap their {shift['shift_date']} shift with you",
+            notification_type="swap_request",
+            related_id=new_swap.id
+        )
+        await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
+    
+    if request.swap_type == "manager_request" or request.message_to_manager:
+        # Notify managers
+        managers = await db.employees.find({
+            "care_home_id": current_user["care_home_id"],
+            "role": {"$in": ["manager", "admin"]},
+            "status": "active"
+        }, {"_id": 0}).to_list(100)
+        
+        for mgr in managers:
+            notification = Notification(
+                care_home_id=current_user["care_home_id"],
+                recipient_id=mgr["id"],
+                title="Shift Swap Request Needs Attention",
+                content=f"{current_user['first_name']} {current_user['last_name']} requests manager help with shift swap on {shift['shift_date']}. Message: {request.message_to_manager or 'No message'}",
+                notification_type="swap_request",
+                related_id=new_swap.id
+            )
+            await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
+    
     return {"success": True, "id": new_swap.id}
 
 @api_router.post("/shift-swaps/{swap_id}/accept")
 async def accept_shift_swap(swap_id: str, current_user: dict = Depends(get_current_user)):
-    """Accept a shift swap (staff only)"""
+    """Accept a shift swap (staff only) - still needs manager approval"""
     if current_user["role"] in ["manager", "admin"]:
-        raise HTTPException(status_code=403, detail="Managers/admins cannot accept shift swaps")
+        raise HTTPException(status_code=403, detail="Use approve endpoint for manager approval")
     
     swap = await db.shift_swaps.find_one({"id": swap_id}, {"_id": 0})
     if not swap:
         raise HTTPException(status_code=404, detail="Swap request not found")
     
-    if swap["status"] != "open":
-        raise HTTPException(status_code=400, detail="Swap is no longer available")
+    if swap["status"] != "pending_acceptance":
+        raise HTTPException(status_code=400, detail="Swap is no longer available for acceptance")
     
     if swap["requester_id"] == current_user["id"]:
         raise HTTPException(status_code=400, detail="Cannot accept your own swap request")
     
-    # Update swap status
+    # If it's a direct swap, only the target can accept
+    if swap.get("swap_type") == "direct" and swap.get("target_id") != current_user["id"]:
+        raise HTTPException(status_code=403, detail="This swap request is for a specific person")
+    
+    # Update swap status to pending manager approval
     await db.shift_swaps.update_one(
         {"id": swap_id},
         {"$set": {
-            "status": "accepted",
+            "status": "accepted_pending_approval",
             "accepted_by": current_user["id"],
             "accepted_by_name": f"{current_user['first_name']} {current_user['last_name']}"
         }}
     )
     
-    # Update the original shift to the new employee
-    await db.shifts.update_one(
-        {"id": swap["original_shift_id"]},
+    # Notify requester
+    notification = Notification(
+        care_home_id=swap["care_home_id"],
+        recipient_id=swap["requester_id"],
+        title="Swap Request Accepted",
+        content=f"{current_user['first_name']} {current_user['last_name']} accepted your swap request. Awaiting manager approval.",
+        notification_type="swap_request",
+        related_id=swap_id
+    )
+    await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
+    
+    # Notify managers for approval
+    managers = await db.employees.find({
+        "care_home_id": swap["care_home_id"],
+        "role": {"$in": ["manager", "admin"]},
+        "status": "active"
+    }, {"_id": 0}).to_list(100)
+    
+    for mgr in managers:
+        notification = Notification(
+            care_home_id=swap["care_home_id"],
+            recipient_id=mgr["id"],
+            title="Shift Swap Needs Approval",
+            content=f"Swap between {swap['requester_name']} and {current_user['first_name']} {current_user['last_name']} for {swap['shift_date']} needs approval",
+            notification_type="swap_request",
+            related_id=swap_id
+        )
+        await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
+    
+    return {"success": True, "message": "Swap accepted, pending manager approval"}
+
+@api_router.post("/shift-swaps/{swap_id}/approve")
+async def approve_shift_swap(swap_id: str, current_user: dict = Depends(get_current_user)):
+    """Approve a shift swap (manager/admin only)"""
+    if current_user["role"] not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Only managers can approve swaps")
+    
+    swap = await db.shift_swaps.find_one({"id": swap_id}, {"_id": 0})
+    if not swap:
+        raise HTTPException(status_code=404, detail="Swap request not found")
+    
+    if swap["status"] != "accepted_pending_approval":
+        raise HTTPException(status_code=400, detail="Swap is not pending approval")
+    
+    # Update swap status
+    await db.shift_swaps.update_one(
+        {"id": swap_id},
         {"$set": {
-            "employee_id": current_user["id"],
-            "status": "swapped",
-            "notes": f"Swapped from {swap['requester_name']}"
+            "status": "approved",
+            "manager_approved": True,
+            "approved_by": current_user["id"],
+            "approved_at": datetime.now(timezone.utc).isoformat()
         }}
     )
     
-    return {"success": True, "message": "Shift swap accepted"}
+    # Update the shift assignment
+    await db.shifts.update_one(
+        {"id": swap["original_shift_id"]},
+        {"$set": {
+            "employee_id": swap["accepted_by"],
+            "status": "swapped",
+            "notes": f"Swapped from {swap['requester_name']} to {swap['accepted_by_name']} - Approved by manager"
+        }}
+    )
+    
+    # Notify both parties
+    for recipient_id in [swap["requester_id"], swap["accepted_by"]]:
+        notification = Notification(
+            care_home_id=swap["care_home_id"],
+            recipient_id=recipient_id,
+            title="Shift Swap Approved",
+            content=f"Your shift swap for {swap['shift_date']} has been approved by management",
+            notification_type="swap_approved",
+            related_id=swap_id
+        )
+        await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
+    
+    return {"success": True, "message": "Shift swap approved"}
+
+@api_router.post("/shift-swaps/{swap_id}/reject")
+async def reject_shift_swap(swap_id: str, reason: Optional[str] = None, current_user: dict = Depends(get_current_user)):
+    """Reject a shift swap (manager/admin only)"""
+    if current_user["role"] not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Only managers can reject swaps")
+    
+    swap = await db.shift_swaps.find_one({"id": swap_id}, {"_id": 0})
+    if not swap:
+        raise HTTPException(status_code=404, detail="Swap request not found")
+    
+    await db.shift_swaps.update_one(
+        {"id": swap_id},
+        {"$set": {
+            "status": "rejected",
+            "approved_by": current_user["id"],
+            "rejection_reason": reason
+        }}
+    )
+    
+    # Notify both parties
+    recipients = [swap["requester_id"]]
+    if swap.get("accepted_by"):
+        recipients.append(swap["accepted_by"])
+    
+    for recipient_id in recipients:
+        notification = Notification(
+            care_home_id=swap["care_home_id"],
+            recipient_id=recipient_id,
+            title="Shift Swap Rejected",
+            content=f"Your shift swap for {swap['shift_date']} has been rejected. Reason: {reason or 'Not specified'}",
+            notification_type="swap_rejected",
+            related_id=swap_id
+        )
+        await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
+    
+    return {"success": True}
 
 @api_router.post("/shift-swaps/{swap_id}/cancel")
 async def cancel_shift_swap(swap_id: str, current_user: dict = Depends(get_current_user)):
@@ -1007,8 +1175,8 @@ async def cancel_shift_swap(swap_id: str, current_user: dict = Depends(get_curre
     if swap["requester_id"] != current_user["id"]:
         raise HTTPException(status_code=403, detail="Can only cancel your own requests")
     
-    if swap["status"] != "open":
-        raise HTTPException(status_code=400, detail="Cannot cancel - swap already processed")
+    if swap["status"] not in ["pending_acceptance", "accepted_pending_approval"]:
+        raise HTTPException(status_code=400, detail="Cannot cancel - swap already finalized")
     
     await db.shift_swaps.update_one(
         {"id": swap_id},
