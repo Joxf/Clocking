@@ -109,16 +109,22 @@ class ShiftSwapRequest(BaseModel):
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
     requester_id: str
     requester_name: Optional[str] = None
-    target_id: Optional[str] = None  # Can be None for open swaps
+    target_id: Optional[str] = None  # Specific colleague to swap with
     target_name: Optional[str] = None
     original_shift_id: str
     shift_date: str  # Date string YYYY-MM-DD
     shift_start: str  # Time string HH:MM
     shift_end: str
     reason: Optional[str] = None
-    status: str = "open"  # open, accepted, completed, cancelled
+    message_to_manager: Optional[str] = None  # Direct message to manager
+    swap_type: str = "open"  # open (anyone can accept), direct (specific colleague), manager_request
+    status: str = "pending_acceptance"  # pending_acceptance, accepted_pending_approval, approved, rejected, cancelled
     accepted_by: Optional[str] = None
     accepted_by_name: Optional[str] = None
+    manager_approved: bool = False
+    approved_by: Optional[str] = None  # Manager who approved
+    approved_at: Optional[datetime] = None
+    rejection_reason: Optional[str] = None
     care_home_id: str
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
