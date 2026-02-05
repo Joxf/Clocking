@@ -1400,6 +1400,26 @@ async def create_day_request(request: DayRequestCreate, current_user: dict = Dep
         reason=request.reason
     )
     await db.day_requests.insert_one(serialize_datetime(new_request.model_dump()))
+    
+    # Notify managers
+    managers = await db.employees.find({
+        "care_home_id": current_user["care_home_id"],
+        "role": {"$in": ["manager", "admin"]},
+        "status": "active"
+    }, {"_id": 0}).to_list(100)
+    
+    req_type_display = "Day On" if request.request_type == "day_on" else "Day Off"
+    for mgr in managers:
+        notification = Notification(
+            care_home_id=current_user["care_home_id"],
+            recipient_id=mgr["id"],
+            title=f"New {req_type_display} Request",
+            content=f"{current_user['first_name']} {current_user['last_name']} requested {req_type_display.lower()} for {request.requested_date}",
+            notification_type="day_request",
+            related_id=new_request.id
+        )
+        await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
+    
     return {"success": True, "id": new_request.id}
 
 @api_router.put("/day-requests/{request_id}/approve")
@@ -1408,13 +1428,26 @@ async def approve_day_request(request_id: str, current_user: dict = Depends(get_
     if current_user["role"] not in ["manager", "admin"]:
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    result = await db.day_requests.update_one(
+    day_req = await db.day_requests.find_one({"id": request_id}, {"_id": 0})
+    if not day_req:
+        raise HTTPException(status_code=404, detail="Day request not found")
+    
+    await db.day_requests.update_one(
         {"id": request_id},
         {"$set": {"status": "approved", "approved_by": current_user["id"]}}
     )
     
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Day request not found")
+    # Notify employee
+    req_type_display = "Day On" if day_req["request_type"] == "day_on" else "Day Off"
+    notification = Notification(
+        care_home_id=day_req["care_home_id"],
+        recipient_id=day_req["employee_id"],
+        title=f"{req_type_display} Request Approved",
+        content=f"Your {req_type_display.lower()} request for {day_req['requested_date']} has been approved",
+        notification_type="day_approved",
+        related_id=request_id
+    )
+    await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
     
     return {"success": True}
 
@@ -1424,13 +1457,26 @@ async def reject_day_request(request_id: str, current_user: dict = Depends(get_c
     if current_user["role"] not in ["manager", "admin"]:
         raise HTTPException(status_code=403, detail="Not authorized")
     
-    result = await db.day_requests.update_one(
+    day_req = await db.day_requests.find_one({"id": request_id}, {"_id": 0})
+    if not day_req:
+        raise HTTPException(status_code=404, detail="Day request not found")
+    
+    await db.day_requests.update_one(
         {"id": request_id},
         {"$set": {"status": "rejected", "approved_by": current_user["id"]}}
     )
     
-    if result.modified_count == 0:
-        raise HTTPException(status_code=404, detail="Day request not found")
+    # Notify employee
+    req_type_display = "Day On" if day_req["request_type"] == "day_on" else "Day Off"
+    notification = Notification(
+        care_home_id=day_req["care_home_id"],
+        recipient_id=day_req["employee_id"],
+        title=f"{req_type_display} Request Rejected",
+        content=f"Your {req_type_display.lower()} request for {day_req['requested_date']} has been rejected",
+        notification_type="day_rejected",
+        related_id=request_id
+    )
+    await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
     
     return {"success": True}
 
