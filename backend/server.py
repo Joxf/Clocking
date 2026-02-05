@@ -1507,6 +1507,291 @@ async def get_colleagues(current_user: dict = Depends(get_current_user)):
     
     return {"colleagues": colleagues}
 
+# ============ MESSAGING ROUTES ============
+
+@api_router.get("/messages")
+async def get_messages(current_user: dict = Depends(get_current_user)):
+    """Get messages for current user"""
+    # Get direct messages to user
+    direct = await db.messages.find({
+        "care_home_id": current_user["care_home_id"],
+        "$or": [
+            {"recipient_id": current_user["id"]},
+            {"sender_id": current_user["id"]},
+            {"recipient_id": None}  # Broadcasts
+        ]
+    }, {"_id": 0}).sort("created_at", -1).to_list(100)
+    
+    return {"messages": direct}
+
+@api_router.post("/messages")
+async def send_message(request: SendMessageRequest, current_user: dict = Depends(get_current_user)):
+    """Send a message to another user or broadcast"""
+    message = Message(
+        care_home_id=current_user["care_home_id"],
+        sender_id=current_user["id"],
+        sender_name=f"{current_user['first_name']} {current_user['last_name']}",
+        recipient_id=request.recipient_id,
+        recipient_role=request.recipient_role,
+        subject=request.subject,
+        content=request.content,
+        message_type=request.message_type,
+        related_id=request.related_id
+    )
+    await db.messages.insert_one(serialize_datetime(message.model_dump()))
+    
+    # Create notification for recipient(s)
+    if request.recipient_id:
+        notification = Notification(
+            care_home_id=current_user["care_home_id"],
+            recipient_id=request.recipient_id,
+            title=f"Message from {current_user['first_name']} {current_user['last_name']}",
+            content=request.subject,
+            notification_type="message",
+            related_id=message.id
+        )
+        await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
+    elif request.recipient_role:
+        # Send to all users with that role
+        recipients = await db.employees.find({
+            "care_home_id": current_user["care_home_id"],
+            "role": request.recipient_role,
+            "status": "active"
+        }, {"_id": 0}).to_list(100)
+        
+        for recipient in recipients:
+            if recipient["id"] != current_user["id"]:
+                notification = Notification(
+                    care_home_id=current_user["care_home_id"],
+                    recipient_id=recipient["id"],
+                    title=f"Message from {current_user['first_name']} {current_user['last_name']}",
+                    content=request.subject,
+                    notification_type="message",
+                    related_id=message.id
+                )
+                await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
+    
+    return {"success": True, "id": message.id}
+
+@api_router.put("/messages/{message_id}/read")
+async def mark_message_read(message_id: str, current_user: dict = Depends(get_current_user)):
+    """Mark message as read"""
+    await db.messages.update_one(
+        {"id": message_id},
+        {"$addToSet": {"read_by": current_user["id"]}}
+    )
+    return {"success": True}
+
+# ============ NOTIFICATION ROUTES ============
+
+@api_router.get("/notifications")
+async def get_notifications(current_user: dict = Depends(get_current_user)):
+    """Get notifications for current user"""
+    notifications = await db.notifications.find({
+        "recipient_id": current_user["id"]
+    }, {"_id": 0}).sort("created_at", -1).to_list(50)
+    
+    unread_count = await db.notifications.count_documents({
+        "recipient_id": current_user["id"],
+        "is_read": False
+    })
+    
+    return {"notifications": notifications, "unread_count": unread_count}
+
+@api_router.put("/notifications/{notification_id}/read")
+async def mark_notification_read(notification_id: str, current_user: dict = Depends(get_current_user)):
+    """Mark notification as read"""
+    await db.notifications.update_one(
+        {"id": notification_id, "recipient_id": current_user["id"]},
+        {"$set": {"is_read": True}}
+    )
+    return {"success": True}
+
+@api_router.put("/notifications/read-all")
+async def mark_all_notifications_read(current_user: dict = Depends(get_current_user)):
+    """Mark all notifications as read"""
+    await db.notifications.update_many(
+        {"recipient_id": current_user["id"], "is_read": False},
+        {"$set": {"is_read": True}}
+    )
+    return {"success": True}
+
+# ============ TEAM CALENDAR ROUTES ============
+
+@api_router.get("/calendar/team-availability")
+async def get_team_availability(current_user: dict = Depends(get_current_user)):
+    """Get team availability calendar - shows approved leave"""
+    today = datetime.now(timezone.utc).date()
+    # Show 3 months ahead
+    end_date = today + timedelta(days=90)
+    
+    # Get all approved leave for the care home
+    leave_requests = await db.leave_requests.find({
+        "care_home_id": current_user["care_home_id"],
+        "status": "approved",
+        "start_date": {"$lte": end_date.isoformat()},
+        "end_date": {"$gte": today.isoformat()}
+    }, {"_id": 0}).to_list(500)
+    
+    # Get employee names
+    employee_ids = list(set([l["employee_id"] for l in leave_requests]))
+    employees = await db.employees.find(
+        {"id": {"$in": employee_ids}},
+        {"_id": 0, "id": 1, "first_name": 1, "last_name": 1, "job_title": 1}
+    ).to_list(100)
+    emp_map = {e["id"]: e for e in employees}
+    
+    # Build calendar data
+    calendar_data = []
+    for leave in leave_requests:
+        emp = emp_map.get(leave["employee_id"], {})
+        calendar_data.append({
+            "id": leave["id"],
+            "employee_id": leave["employee_id"],
+            "employee_name": f"{emp.get('first_name', '')} {emp.get('last_name', '')}",
+            "job_title": emp.get("job_title", ""),
+            "start_date": leave["start_date"],
+            "end_date": leave["end_date"],
+            "leave_type": leave["leave_type"]
+        })
+    
+    return {"calendar": calendar_data, "start_date": today.isoformat(), "end_date": end_date.isoformat()}
+
+@api_router.get("/calendar/monthly-rota")
+async def get_monthly_rota(year: int, month: int, current_user: dict = Depends(get_current_user)):
+    """Get monthly rota calendar view"""
+    from calendar import monthrange
+    
+    # Calculate month boundaries
+    first_day = datetime(year, month, 1).date()
+    last_day = datetime(year, month, monthrange(year, month)[1]).date()
+    
+    # Get shifts for the month
+    shifts = await db.shifts.find({
+        "employee_id": current_user["id"],
+        "shift_date": {
+            "$gte": first_day.isoformat(),
+            "$lte": last_day.isoformat()
+        }
+    }, {"_id": 0}).to_list(100)
+    
+    # Get leave for the month
+    leave = await db.leave_requests.find({
+        "employee_id": current_user["id"],
+        "status": "approved",
+        "start_date": {"$lte": last_day.isoformat()},
+        "end_date": {"$gte": first_day.isoformat()}
+    }, {"_id": 0}).to_list(50)
+    
+    return {
+        "year": year,
+        "month": month,
+        "shifts": shifts,
+        "leave": leave,
+        "first_day": first_day.isoformat(),
+        "last_day": last_day.isoformat()
+    }
+
+@api_router.get("/calendar/team-rota")
+async def get_team_rota(year: int, month: int, current_user: dict = Depends(get_current_user)):
+    """Get team rota for managers to see all staff shifts"""
+    if current_user["role"] not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    from calendar import monthrange
+    
+    first_day = datetime(year, month, 1).date()
+    last_day = datetime(year, month, monthrange(year, month)[1]).date()
+    
+    # Get all shifts for care home
+    shifts = await db.shifts.find({
+        "care_home_id": current_user["care_home_id"],
+        "shift_date": {
+            "$gte": first_day.isoformat(),
+            "$lte": last_day.isoformat()
+        }
+    }, {"_id": 0}).to_list(1000)
+    
+    # Get employees
+    employees = await db.employees.find({
+        "care_home_id": current_user["care_home_id"],
+        "status": "active"
+    }, {"_id": 0, "pin_hash": 0, "totp_secret": 0}).to_list(100)
+    
+    emp_map = {e["id"]: e for e in employees}
+    
+    # Enrich shifts with employee info
+    for shift in shifts:
+        emp = emp_map.get(shift["employee_id"], {})
+        shift["employee_name"] = f"{emp.get('first_name', '')} {emp.get('last_name', '')}"
+        shift["job_title"] = emp.get("job_title", "")
+    
+    return {
+        "year": year,
+        "month": month,
+        "shifts": shifts,
+        "employees": employees
+    }
+
+# ============ MANAGER APPROVAL DASHBOARD ============
+
+@api_router.get("/manager/pending-approvals")
+async def get_pending_approvals(current_user: dict = Depends(get_current_user)):
+    """Get all pending items for manager approval"""
+    if current_user["role"] not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    # Pending leave requests
+    leave_requests = await db.leave_requests.find({
+        "care_home_id": current_user["care_home_id"],
+        "status": "pending"
+    }, {"_id": 0}).to_list(100)
+    
+    # Pending day requests
+    day_requests = await db.day_requests.find({
+        "care_home_id": current_user["care_home_id"],
+        "status": "pending"
+    }, {"_id": 0}).to_list(100)
+    
+    # Pending swap approvals
+    swap_requests = await db.shift_swaps.find({
+        "care_home_id": current_user["care_home_id"],
+        "status": "accepted_pending_approval"
+    }, {"_id": 0}).to_list(100)
+    
+    # Get employee info
+    all_emp_ids = set()
+    for req in leave_requests + day_requests:
+        all_emp_ids.add(req["employee_id"])
+    for swap in swap_requests:
+        all_emp_ids.add(swap["requester_id"])
+        if swap.get("accepted_by"):
+            all_emp_ids.add(swap["accepted_by"])
+    
+    employees = await db.employees.find(
+        {"id": {"$in": list(all_emp_ids)}},
+        {"_id": 0, "id": 1, "first_name": 1, "last_name": 1, "job_title": 1}
+    ).to_list(100)
+    emp_map = {e["id"]: e for e in employees}
+    
+    # Enrich with employee names
+    for req in leave_requests:
+        emp = emp_map.get(req["employee_id"], {})
+        req["employee_name"] = f"{emp.get('first_name', '')} {emp.get('last_name', '')}"
+        req["job_title"] = emp.get("job_title", "")
+    
+    for req in day_requests:
+        emp = emp_map.get(req["employee_id"], {})
+        req["employee_name"] = f"{emp.get('first_name', '')} {emp.get('last_name', '')}"
+        req["job_title"] = emp.get("job_title", "")
+    
+    return {
+        "leave_requests": leave_requests,
+        "day_requests": day_requests,
+        "swap_requests": swap_requests,
+        "total_pending": len(leave_requests) + len(day_requests) + len(swap_requests)
+    }
+
 # ============ SEED DATA ============
 
 @api_router.post("/seed")
