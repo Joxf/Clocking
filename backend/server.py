@@ -172,6 +172,34 @@ class AuthEvent(BaseModel):
     user_agent: Optional[str] = None
     timestamp: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class Message(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    care_home_id: str
+    sender_id: str
+    sender_name: str
+    recipient_id: Optional[str] = None  # None = broadcast to all
+    recipient_role: Optional[str] = None  # Can target by role (staff, manager, admin)
+    subject: str
+    content: str
+    message_type: str = "general"  # general, leave_request, swap_request, day_request, system
+    related_id: Optional[str] = None  # Related request ID
+    is_read: bool = False
+    read_by: List[str] = Field(default_factory=list)  # List of user IDs who read it
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class Notification(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    care_home_id: str
+    recipient_id: str
+    title: str
+    content: str
+    notification_type: str  # leave_approved, leave_rejected, swap_request, swap_approved, swap_rejected, message, system
+    related_id: Optional[str] = None
+    is_read: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 # ============ REQUEST/RESPONSE MODELS ============
 
 class QRValidateRequest(BaseModel):
