@@ -264,6 +264,21 @@ class ShiftSwapCreate(BaseModel):
 class AcceptSwapRequest(BaseModel):
     swap_id: str
 
+class SendMessageRequest(BaseModel):
+    recipient_id: Optional[str] = None  # None for broadcast
+    recipient_role: Optional[str] = None  # Target by role
+    subject: str
+    content: str
+    message_type: str = "general"
+    related_id: Optional[str] = None
+
+class ShiftSwapCreateEnhanced(BaseModel):
+    original_shift_id: str
+    swap_type: str = "open"  # open, direct, manager_request
+    target_id: Optional[str] = None  # For direct swap
+    reason: Optional[str] = None
+    message_to_manager: Optional[str] = None
+
 # ============ HELPERS ============
 
 def hash_pin(pin: str) -> str:
