@@ -476,14 +476,14 @@ const ManagerDashboard = () => {
             <div className="frappe-card">
               <div className="frappe-card-header flex items-center gap-2">
                 <RefreshCcw size={18} />
-                <span>Shift Swaps ({pendingApprovals.swap_requests.length})</span>
+                <span>Shift Swaps ({swapApprovals.length})</span>
               </div>
               <div className="frappe-card-content">
-                {pendingApprovals.swap_requests.length === 0 ? (
+                {swapApprovals.length === 0 ? (
                   <p className="text-gray-500 text-center py-4">No pending shift swaps</p>
                 ) : (
                   <div className="space-y-3">
-                    {pendingApprovals.swap_requests.map((swap) => (
+                    {swapApprovals.map((swap) => (
                       <div key={swap.id} className="p-4 border border-gray-200 rounded-lg flex items-center justify-between">
                         <div>
                           <p className="font-medium text-gray-900">{swap.requester_name} ↔ {swap.accepted_by_name}</p>
