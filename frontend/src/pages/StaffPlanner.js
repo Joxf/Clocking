@@ -39,9 +39,7 @@ const StaffPlanner = () => {
   const [showOvertimePanel, setShowOvertimePanel] = useState(false);
   const [warningModal, setWarningModal] = useState(null);
   const [selectedTemplate, setSelectedTemplate] = useState('early');
-  const [showTemplateMenu, setShowTemplateMenu] = useState(null); // {empId, date}
   const [dragData, setDragData] = useState(null);
-  const [overtimeData, setOvertimeData] = useState(null);
 
   const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
