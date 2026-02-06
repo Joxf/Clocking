@@ -13,6 +13,7 @@ import StaffProfile from "./pages/StaffProfile";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import MobileAuth from "./pages/MobileAuth";
+import StaffPlanner from "./pages/StaffPlanner";
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
