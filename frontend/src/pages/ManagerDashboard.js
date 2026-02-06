@@ -247,6 +247,9 @@ const ManagerDashboard = () => {
         <button onClick={() => setActiveTab('dashboard')} className={`frappe-sidebar-item w-full text-left ${activeTab === 'dashboard' ? 'active' : ''}`}>
           <LayoutDashboard size={18} /><span>Dashboard</span>
         </button>
+        <button onClick={() => navigate('/manager/planner')} className="frappe-sidebar-item w-full text-left" data-testid="planner-nav">
+          <CalendarDays size={18} /><span>Staff Planner</span>
+        </button>
         <button onClick={() => setActiveTab('attendance')} className={`frappe-sidebar-item w-full text-left ${activeTab === 'attendance' ? 'active' : ''}`}>
           <Clock size={18} /><span>Attendance</span>
         </button>
