@@ -325,15 +325,13 @@ const StaffPlanner = () => {
         </div>
       </div>
 
-      {/* Coverage detail row */}
-      <CoverageDetailRow cols={cols} coverage={plannerData.coverage} todayStr={todayStr} year={year} month={month} />
-
       {/* Main grid */}
-      <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 260px)' }}>
-        <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 260px)' }}>
+      <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
+        <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
           <table className="min-w-full border-collapse text-xs">
-            <thead className="sticky top-0 z-10 bg-gray-100">
-              <tr>
+            <thead className="sticky top-0 z-10">
+              {/* Day headers */}
+              <tr className="bg-gray-100">
                 <th className="sticky left-0 z-20 bg-gray-100 px-2 py-2 text-left font-medium text-gray-600 border-b border-r border-gray-200 min-w-[160px]">
                   <div className="flex items-center gap-1"><Users size={13} /> Staff ({filteredStaff.length})</div>
                 </th>
@@ -362,11 +360,53 @@ const StaffPlanner = () => {
                     </th>
                   );
                 })}
-                <th className="px-2 py-1.5 text-center font-semibold border-b border-l-2 border-l-gray-400 border-gray-200 min-w-[56px] bg-slate-200 text-slate-700">
+                <th className="px-2 py-1.5 text-center font-semibold border-b border-l-2 border-l-gray-400 border-gray-200 min-w-[64px] bg-slate-200 text-slate-700">
                   <div className="text-[10px]">Month</div>
                   <div className="text-[10px]">Total</div>
                 </th>
               </tr>
+              {/* Coverage rows — inside thead so columns align */}
+              {['early', 'late', 'night'].map(tplKey => {
+                const style = TEMPLATE_COLORS[tplKey];
+                const lbl = tplKey === 'early' ? 'Early' : tplKey === 'late' ? 'Late' : 'Night';
+                const BASELINE_N = 2;
+                const BASELINE_C = 6;
+                return (
+                  <tr key={`cov-${tplKey}`} className="bg-white">
+                    <th className="sticky left-0 z-20 bg-white px-2 py-0.5 text-left border-b border-r border-gray-200 min-w-[160px]">
+                      <span className={`text-[10px] font-medium ${style.text}`}>
+                        <span className={`inline-block w-2 h-2 rounded-full ${style.dot} mr-1`} />{lbl}
+                      </span>
+                    </th>
+                    {cols.map((col, ci) => {
+                      if (col.type === 'week') {
+                        return <td key={`wk${col.weekIndex}`} className="border-b border-r border-l-2 border-l-gray-400 border-gray-200 bg-slate-50" />;
+                      }
+                      const cov = plannerData.coverage[col.dateStr] || {};
+                      const shiftCov = cov[tplKey];
+                      const isMonday = new Date(year, month - 1, col.day).getDay() === 1 && col.day > 1;
+                      const isToday = col.dateStr === todayStr;
+                      if (!shiftCov || shiftCov.total === 0) {
+                        return <td key={col.day} className={`border-b border-r border-gray-200 text-center text-gray-300 text-[9px] ${isMonday ? 'border-l-2 border-l-gray-300' : ''}`}>-</td>;
+                      }
+                      const nOk = shiftCov.nurses >= BASELINE_N;
+                      const cOk = shiftCov.carers >= BASELINE_C;
+                      const allOk = nOk && cOk;
+                      const over = shiftCov.nurses > BASELINE_N + 1 || shiftCov.carers > BASELINE_C + 2;
+                      const bgClass = !allOk ? 'bg-red-50' : over ? 'bg-sky-50' : 'bg-green-50';
+                      return (
+                        <td key={col.day}
+                            className={`border-b border-r border-gray-200 text-center px-0 py-0 text-[9px] ${bgClass} ${isToday ? 'ring-1 ring-inset ring-blue-400' : ''} ${isMonday ? 'border-l-2 border-l-gray-300' : ''}`}
+                            title={`${lbl}: ${shiftCov.nurses}N ${shiftCov.carers}C (baseline ${BASELINE_N}N ${BASELINE_C}C)`}>
+                          <span className={`font-bold ${nOk ? 'text-green-700' : 'text-red-600'}`}>{shiftCov.nurses}N</span>
+                          <span className={`font-bold ${cOk ? 'text-green-700' : 'text-red-600'}`}>{shiftCov.carers}C</span>
+                        </td>
+                      );
+                    })}
+                    <td className="border-b border-l-2 border-l-gray-400 border-gray-200 bg-slate-50 min-w-[64px]" />
+                  </tr>
+                );
+              })}
             </thead>
             <tbody>
               {filteredStaff.map(emp => {
