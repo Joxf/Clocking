@@ -1,0 +1,506 @@
+import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
+import {
+  ChevronLeft, ChevronRight, Users, Clock, AlertTriangle,
+  Plus, X, GripVertical, Filter, Eye, EyeOff, BarChart3, ArrowLeft
+} from 'lucide-react';
+
+const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+const TEMPLATE_COLORS = {
+  early:    { bg: 'bg-amber-100', border: 'border-amber-400', text: 'text-amber-800', dot: 'bg-amber-400', label: 'E' },
+  late:     { bg: 'bg-blue-100', border: 'border-blue-400', text: 'text-blue-800', dot: 'bg-blue-400', label: 'L' },
+  night:    { bg: 'bg-violet-100', border: 'border-violet-400', text: 'text-violet-800', dot: 'bg-violet-400', label: 'N' },
+  long_day: { bg: 'bg-emerald-100', border: 'border-emerald-400', text: 'text-emerald-800', dot: 'bg-emerald-400', label: 'LD' },
+};
+
+const JOB_LABELS = {
+  nurse: 'Nurse', senior_carer: 'Sr Carer', carer: 'Carer',
+  activities: 'Activities', kitchen: 'Kitchen', maintenance: 'Maint.',
+  care_manager: 'Manager', administrator: 'Admin',
+};
+
+const StaffPlanner = () => {
+  const { token } = useAuth();
+  const navigate = useNavigate();
+  const headers = { Authorization: `Bearer ${token}` };
+
+  const today = new Date();
+  const [year, setYear] = useState(today.getFullYear());
+  const [month, setMonth] = useState(today.getMonth() + 1);
+  const [plannerData, setPlannerData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [viewMode, setViewMode] = useState('on_duty'); // on_duty, off_duty
+  const [filterRole, setFilterRole] = useState('all');
+  const [showOvertimePanel, setShowOvertimePanel] = useState(false);
+  const [warningModal, setWarningModal] = useState(null);
+  const [selectedTemplate, setSelectedTemplate] = useState('early');
+  const [showTemplateMenu, setShowTemplateMenu] = useState(null); // {empId, date}
+  const [dragData, setDragData] = useState(null);
+  const [overtimeData, setOvertimeData] = useState(null);
+
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+  const fetchPlanner = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await axios.get(`${API}/planner/monthly?year=${year}&month=${month}`, { headers });
+      setPlannerData(res.data);
+    } catch (err) {
+      console.error('Failed to fetch planner:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [year, month, token]);
+
+  useEffect(() => { fetchPlanner(); }, [fetchPlanner]);
+
+  const fetchOvertime = async () => {
+    try {
+      const res = await axios.get(`${API}/planner/overtime?year=${year}&month=${month}`, { headers });
+      setOvertimeData(res.data.overtime);
+    } catch (err) { console.error(err); }
+  };
+
+  const prevMonth = () => {
+    if (month === 1) { setMonth(12); setYear(y => y - 1); }
+    else setMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (month === 12) { setMonth(1); setYear(y => y + 1); }
+    else setMonth(m => m + 1);
+  };
+
+  const getDaysInMonth = () => {
+    return new Date(year, month, 0).getDate();
+  };
+
+  const assignShift = async (employeeId, date, template, force = false) => {
+    try {
+      const res = await axios.post(`${API}/planner/assign`, {
+        employee_id: employeeId, shift_date: date, template, force
+      }, { headers });
+      if (res.data.requires_confirmation) {
+        setWarningModal({ warnings: res.data.warnings, employeeId, date, template });
+        return;
+      }
+      fetchPlanner();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to assign shift';
+      alert(msg);
+    }
+  };
+
+  const removeShift = async (shiftId) => {
+    try {
+      await axios.delete(`${API}/planner/unassign/${shiftId}`, { headers });
+      fetchPlanner();
+    } catch (err) { console.error(err); }
+  };
+
+  const moveShift = async (shiftId, newDate, newEmployeeId, force = false) => {
+    try {
+      const res = await axios.put(`${API}/planner/move`, {
+        shift_id: shiftId, new_date: newDate, new_employee_id: newEmployeeId, force
+      }, { headers });
+      if (res.data.requires_confirmation) {
+        setWarningModal({ warnings: res.data.warnings, shiftId, newDate, newEmployeeId, isMove: true });
+        return;
+      }
+      fetchPlanner();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to move shift';
+      alert(msg);
+    }
+  };
+
+  const confirmWarning = () => {
+    if (!warningModal) return;
+    if (warningModal.isMove) {
+      moveShift(warningModal.shiftId, warningModal.newDate, warningModal.newEmployeeId, true);
+    } else {
+      assignShift(warningModal.employeeId, warningModal.date, warningModal.template, true);
+    }
+    setWarningModal(null);
+  };
+
+  const seedMonth = async () => {
+    try {
+      await axios.post(`${API}/planner/seed-month?year=${year}&month=${month}`, {}, { headers });
+      fetchPlanner();
+    } catch (err) { console.error(err); }
+  };
+
+  // Drag and drop handlers
+  const handleDragStart = (e, shiftId, empId) => {
+    setDragData({ shiftId, empId });
+    e.dataTransfer.effectAllowed = 'move';
+  };
+
+  const handleDragOver = (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e, targetEmpId, targetDate) => {
+    e.preventDefault();
+    if (!dragData) return;
+    const newEmpId = targetEmpId !== dragData.empId ? targetEmpId : null;
+    moveShift(dragData.shiftId, targetDate, newEmpId);
+    setDragData(null);
+  };
+
+  const handleCellClick = (empId, dateStr) => {
+    // Check if there's already a shift
+    const existing = getShiftForCell(empId, dateStr);
+    if (!existing) {
+      assignShift(empId, dateStr, selectedTemplate);
+    }
+  };
+
+  const getShiftForCell = (empId, dateStr) => {
+    if (!plannerData) return null;
+    return plannerData.shifts.find(s => s.employee_id === empId && s.shift_date === dateStr);
+  };
+
+  const isOnLeave = (empId, dateStr) => {
+    if (!plannerData) return false;
+    return plannerData.leave.some(l =>
+      l.employee_id === empId && dateStr >= l.start_date && dateStr <= l.end_date
+    );
+  };
+
+  const filteredStaff = plannerData ? plannerData.staff.filter(emp => {
+    if (filterRole === 'all') return true;
+    if (filterRole === 'agency') return emp.employment_type === 'agency';
+    return emp.job_title === filterRole;
+  }) : [];
+
+  const daysInMonth = getDaysInMonth();
+  const todayStr = today.toISOString().split('T')[0];
+
+  if (loading || !plannerData) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="frappe-spinner" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gray-50" data-testid="staff-planner-page">
+      {/* Top bar */}
+      <div className="bg-white border-b border-gray-200 px-4 py-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button onClick={() => navigate(-1)} className="text-gray-500 hover:text-gray-700" data-testid="planner-back-btn">
+              <ArrowLeft size={20} />
+            </button>
+            <h1 className="text-lg font-semibold text-gray-900">Staff Planner</h1>
+          </div>
+          <div className="flex items-center gap-2">
+            <button onClick={prevMonth} className="p-1.5 hover:bg-gray-100 rounded" data-testid="prev-month"><ChevronLeft size={18} /></button>
+            <span className="text-sm font-medium min-w-[140px] text-center" data-testid="planner-month">
+              {monthNames[month - 1]} {year}
+            </span>
+            <button onClick={nextMonth} className="p-1.5 hover:bg-gray-100 rounded" data-testid="next-month"><ChevronRight size={18} /></button>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => { fetchOvertime(); setShowOvertimePanel(!showOvertimePanel); }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border ${showOvertimePanel ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
+              data-testid="overtime-toggle"
+            >
+              <BarChart3 size={14} /> Overtime
+            </button>
+            <button
+              onClick={seedMonth}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
+              data-testid="seed-month-btn"
+            >
+              <Plus size={14} /> Seed Month
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Toolbar: template selector + filters */}
+      <div className="bg-white border-b border-gray-200 px-4 py-2">
+        <div className="flex items-center justify-between">
+          {/* Template palette */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs text-gray-500 mr-1">Template:</span>
+            {Object.entries(TEMPLATE_COLORS).map(([key, style]) => {
+              const tpl = plannerData.templates[key];
+              return (
+                <button
+                  key={key}
+                  onClick={() => setSelectedTemplate(key)}
+                  className={`px-2.5 py-1 text-xs rounded-md border transition-all ${
+                    selectedTemplate === key
+                      ? `${style.bg} ${style.border} ${style.text} font-semibold ring-2 ring-offset-1 ring-${key === 'early' ? 'amber' : key === 'late' ? 'blue' : key === 'night' ? 'violet' : 'emerald'}-300`
+                      : 'border-gray-200 text-gray-500 hover:bg-gray-50'
+                  }`}
+                  data-testid={`template-${key}`}
+                >
+                  <span className={`inline-block w-2 h-2 rounded-full ${style.dot} mr-1`} />
+                  {tpl.label} ({tpl.start}-{tpl.end})
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Filters */}
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setViewMode(v => v === 'on_duty' ? 'off_duty' : 'on_duty')}
+              className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50"
+              data-testid="view-toggle"
+            >
+              {viewMode === 'on_duty' ? <Eye size={13} /> : <EyeOff size={13} />}
+              {viewMode === 'on_duty' ? 'On Duty' : 'Off Duty'}
+            </button>
+            <select
+              value={filterRole}
+              onChange={e => setFilterRole(e.target.value)}
+              className="text-xs border border-gray-200 rounded-md px-2 py-1 text-gray-600"
+              data-testid="role-filter"
+            >
+              <option value="all">All Staff</option>
+              <option value="nurse">Nurses</option>
+              <option value="senior_carer">Sr Carers</option>
+              <option value="carer">Carers</option>
+              <option value="agency">Agency</option>
+              <option value="activities">Activities</option>
+              <option value="kitchen">Kitchen</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      {/* Coverage summary bar */}
+      <CoverageSummary coverage={plannerData.coverage} daysInMonth={daysInMonth} year={year} month={month} todayStr={todayStr} />
+
+      {/* Main grid */}
+      <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 230px)' }}>
+        <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 230px)' }}>
+          <table className="min-w-full border-collapse text-xs">
+            <thead className="sticky top-0 z-10 bg-gray-100">
+              <tr>
+                <th className="sticky left-0 z-20 bg-gray-100 px-2 py-2 text-left font-medium text-gray-600 border-b border-r border-gray-200 min-w-[160px]">
+                  <div className="flex items-center gap-1"><Users size={13} /> Staff ({filteredStaff.length})</div>
+                </th>
+                {Array.from({ length: daysInMonth }, (_, i) => {
+                  const day = i + 1;
+                  const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                  const isToday = dateStr === todayStr;
+                  const dayName = new Date(year, month - 1, day).toLocaleDateString('en-GB', { weekday: 'short' });
+                  const isWeekend = [0, 6].includes(new Date(year, month - 1, day).getDay());
+                  return (
+                    <th
+                      key={day}
+                      className={`px-0.5 py-1.5 text-center font-medium border-b border-r border-gray-200 min-w-[44px] ${
+                        isToday ? 'bg-blue-100 text-blue-700' : isWeekend ? 'bg-gray-50 text-gray-500' : 'text-gray-600'
+                      }`}
+                    >
+                      <div className="text-[10px]">{dayName}</div>
+                      <div>{day}</div>
+                    </th>
+                  );
+                })}
+                {showOvertimePanel && (
+                  <th className="px-2 py-1.5 text-center font-medium border-b border-gray-200 min-w-[80px] bg-orange-50 text-orange-700">
+                    <div className="flex items-center justify-center gap-1"><Clock size={12} /> Hours</div>
+                  </th>
+                )}
+              </tr>
+            </thead>
+            <tbody>
+              {filteredStaff.map(emp => {
+                const empId = emp.id;
+                const empStats = plannerData.staff_stats[empId] || {};
+                const isAgency = emp.employment_type === 'agency';
+                const otData = overtimeData ? overtimeData.find(o => o.employee_id === emp.employee_id) : null;
+                return (
+                  <tr key={empId} className="hover:bg-gray-50/50">
+                    <td className="sticky left-0 z-10 bg-white px-2 py-1 border-b border-r border-gray-200">
+                      <div className="flex items-center gap-2">
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${isAgency ? 'bg-orange-500' : 'bg-slate-600'}`}>
+                          {emp.first_name[0]}{emp.last_name[0]}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="font-medium text-gray-900 truncate text-[11px]">{emp.first_name} {emp.last_name}</div>
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] text-gray-400">{JOB_LABELS[emp.job_title] || emp.job_title}</span>
+                            {isAgency && <span className="text-[9px] px-1 py-0 bg-orange-100 text-orange-700 rounded">AGY</span>}
+                          </div>
+                        </div>
+                      </div>
+                    </td>
+                    {Array.from({ length: daysInMonth }, (_, i) => {
+                      const day = i + 1;
+                      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                      const shift = getShiftForCell(empId, dateStr);
+                      const onLeave = isOnLeave(empId, dateStr);
+                      const isToday = dateStr === todayStr;
+                      const isWeekend = [0, 6].includes(new Date(year, month - 1, day).getDay());
+
+                      if (viewMode === 'off_duty') {
+                        const isOff = !shift && !onLeave;
+                        return (
+                          <td key={day} className={`border-b border-r border-gray-200 text-center ${isToday ? 'bg-blue-50' : isWeekend ? 'bg-gray-50/50' : ''}`}>
+                            {isOff && <span className="text-gray-300 text-[10px]">OFF</span>}
+                            {onLeave && <span className="text-green-600 text-[10px] font-medium">AL</span>}
+                            {shift && <span className="text-gray-300 text-[10px]">-</span>}
+                          </td>
+                        );
+                      }
+
+                      return (
+                        <td
+                          key={day}
+                          className={`border-b border-r border-gray-200 p-0 ${isToday ? 'bg-blue-50' : isWeekend ? 'bg-gray-50/50' : ''}`}
+                          onDragOver={handleDragOver}
+                          onDrop={(e) => handleDrop(e, empId, dateStr)}
+                          onClick={() => !shift && !onLeave && handleCellClick(empId, dateStr)}
+                          style={{ cursor: !shift && !onLeave ? 'pointer' : 'default' }}
+                        >
+                          {onLeave && (
+                            <div className="mx-0.5 my-0.5 px-1 py-0.5 bg-green-100 border border-green-300 text-green-700 text-[10px] rounded text-center font-medium">
+                              AL
+                            </div>
+                          )}
+                          {shift && !onLeave && (
+                            <ShiftCell shift={shift} onRemove={removeShift} onDragStart={handleDragStart} empId={empId} />
+                          )}
+                        </td>
+                      );
+                    })}
+                    {showOvertimePanel && (
+                      <td className="border-b border-gray-200 px-2 py-1 text-center bg-orange-50/50">
+                        <div className="text-[11px] font-medium">{empStats.total_hours || 0}h</div>
+                        {(otData && otData.overtime_hours > 0) && (
+                          <div className="text-[10px] text-orange-600 font-medium">+{otData.overtime_hours}h OT</div>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Warning modal */}
+      {warningModal && (
+        <WarningModal
+          warnings={warningModal.warnings}
+          onConfirm={confirmWarning}
+          onCancel={() => setWarningModal(null)}
+        />
+      )}
+    </div>
+  );
+};
+
+const ShiftCell = ({ shift, onRemove, onDragStart, empId }) => {
+  const tpl = shift.template || 'custom';
+  const style = TEMPLATE_COLORS[tpl] || { bg: 'bg-gray-100', border: 'border-gray-300', text: 'text-gray-700', label: '?' };
+  const isAgency = shift.is_agency_cover;
+
+  return (
+    <div
+      draggable
+      onDragStart={(e) => onDragStart(e, shift.id, empId)}
+      className={`group relative mx-0.5 my-0.5 px-1 py-0.5 ${style.bg} border ${style.border} ${style.text} text-[10px] rounded text-center font-medium cursor-grab active:cursor-grabbing`}
+      title={`${shift.start_time}-${shift.end_time}${isAgency ? ' (Agency)' : ''}`}
+    >
+      {style.label}
+      {isAgency && <span className="ml-0.5 text-orange-600">*</span>}
+      <button
+        onClick={(e) => { e.stopPropagation(); onRemove(shift.id); }}
+        className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-red-500 text-white rounded-full items-center justify-center text-[8px] hidden group-hover:flex"
+        data-testid={`remove-shift-${shift.id}`}
+      >
+        <X size={8} />
+      </button>
+    </div>
+  );
+};
+
+const CoverageSummary = ({ coverage, daysInMonth, year, month, todayStr }) => {
+  if (!coverage) return null;
+  return (
+    <div className="bg-white border-b border-gray-200 px-4 py-1.5 overflow-x-auto">
+      <div className="flex items-center gap-0.5 min-w-max">
+        <span className="text-[10px] text-gray-500 mr-1 min-w-[60px]">Coverage:</span>
+        {Array.from({ length: daysInMonth }, (_, i) => {
+          const day = i + 1;
+          const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          const dayCov = coverage[dateStr] || {};
+          let worstStatus = 'green';
+          for (const tplKey of Object.keys(dayCov)) {
+            const c = dayCov[tplKey];
+            if (!c.nurse_ok || !c.carer_ok) worstStatus = 'red';
+            else if (c.total > 10 && worstStatus !== 'red') worstStatus = 'blue';
+          }
+          const hasData = Object.keys(dayCov).some(k => dayCov[k].total > 0);
+          const colorClass = !hasData ? 'bg-gray-200' : worstStatus === 'red' ? 'bg-red-400' : worstStatus === 'blue' ? 'bg-sky-300' : 'bg-green-400';
+          const isToday = dateStr === todayStr;
+          return (
+            <div
+              key={day}
+              className={`w-[44px] h-2.5 ${colorClass} rounded-sm ${isToday ? 'ring-1 ring-blue-600' : ''}`}
+              title={`Day ${day}: ${worstStatus === 'red' ? 'Below baseline' : worstStatus === 'blue' ? 'Overstaffed' : 'OK'}`}
+            />
+          );
+        })}
+      </div>
+    </div>
+  );
+};
+
+const WarningModal = ({ warnings, onConfirm, onCancel }) => (
+  <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" data-testid="warning-modal">
+    <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center">
+          <AlertTriangle size={20} className="text-amber-600" />
+        </div>
+        <div>
+          <h3 className="font-semibold text-gray-900">Scheduling Warning</h3>
+          <p className="text-sm text-gray-500">This assignment violates planner rules</p>
+        </div>
+      </div>
+      <div className="space-y-2 mb-6">
+        {warnings.map((w, i) => (
+          <div key={i} className="flex items-start gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+            <AlertTriangle size={14} className="text-amber-600 mt-0.5 flex-shrink-0" />
+            <p className="text-sm text-amber-800">{w.message}</p>
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-3">
+        <button
+          onClick={onCancel}
+          className="flex-1 px-4 py-2 text-sm border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+          data-testid="warning-cancel"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={onConfirm}
+          className="flex-1 px-4 py-2 text-sm bg-amber-500 text-white rounded-lg hover:bg-amber-600 font-medium"
+          data-testid="warning-confirm"
+        >
+          Assign Anyway
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
+export default StaffPlanner;
