@@ -416,14 +416,14 @@ const ManagerDashboard = () => {
             <div className="frappe-card mb-6">
               <div className="frappe-card-header flex items-center gap-2">
                 <Calendar size={18} />
-                <span>Leave Requests ({pendingApprovals.leave_requests.length})</span>
+                <span>Leave Requests ({leaveApprovals.length})</span>
               </div>
               <div className="frappe-card-content">
-                {pendingApprovals.leave_requests.length === 0 ? (
+                {leaveApprovals.length === 0 ? (
                   <p className="text-gray-500 text-center py-4">No pending leave requests</p>
                 ) : (
                   <div className="space-y-3">
-                    {pendingApprovals.leave_requests.map((req) => (
+                    {leaveApprovals.map((req) => (
                       <div key={req.id} className="p-4 border border-gray-200 rounded-lg flex items-center justify-between">
                         <div>
                           <p className="font-medium text-gray-900">{req.employee_name}</p>
@@ -446,14 +446,14 @@ const ManagerDashboard = () => {
             <div className="frappe-card mb-6">
               <div className="frappe-card-header flex items-center gap-2">
                 <CalendarDays size={18} />
-                <span>Day Requests ({pendingApprovals.day_requests.length})</span>
+                <span>Day Requests ({dayApprovals.length})</span>
               </div>
               <div className="frappe-card-content">
-                {pendingApprovals.day_requests.length === 0 ? (
+                {dayApprovals.length === 0 ? (
                   <p className="text-gray-500 text-center py-4">No pending day requests</p>
                 ) : (
                   <div className="space-y-3">
-                    {pendingApprovals.day_requests.map((req) => (
+                    {dayApprovals.map((req) => (
                       <div key={req.id} className="p-4 border border-gray-200 rounded-lg flex items-center justify-between">
                         <div>
                           <p className="font-medium text-gray-900">{req.employee_name}</p>
