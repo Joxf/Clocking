@@ -137,9 +137,12 @@ class Shift(BaseModel):
     shift_date: str  # Date string YYYY-MM-DD
     start_time: str  # Time string HH:MM
     end_time: str
+    template: str = "custom"  # early, late, night, long_day, custom
     shift_type: str = "regular"  # regular, overtime, on_call
     status: str = "scheduled"  # scheduled, completed, missed, swapped
+    is_agency_cover: bool = False  # Whether this is agency/bank cover
     notes: Optional[str] = None
+    assigned_by: Optional[str] = None  # Manager who assigned
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 class LeaveRequest(BaseModel):
