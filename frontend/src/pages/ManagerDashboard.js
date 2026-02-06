@@ -257,14 +257,14 @@ const ManagerDashboard = () => {
         <div className="frappe-sidebar-section">Approvals</div>
         <button onClick={() => setActiveTab('approvals')} className={`frappe-sidebar-item w-full text-left ${activeTab === 'approvals' ? 'active' : ''}`}>
           <CheckCircle size={18} /><span>Pending Approvals</span>
-          {pendingApprovals.total_pending > 0 && (
-            <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">{pendingApprovals.total_pending}</span>
+          {totalPending > 0 && (
+            <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">{totalPending}</span>
           )}
         </button>
         <button onClick={() => setActiveTab('swaps')} className={`frappe-sidebar-item w-full text-left ${activeTab === 'swaps' ? 'active' : ''}`}>
           <RefreshCcw size={18} /><span>Shift Swaps</span>
-          {pendingApprovals.swap_requests.length > 0 && (
-            <span className="ml-auto bg-orange-500 text-white text-xs rounded-full px-2 py-0.5">{pendingApprovals.swap_requests.length}</span>
+          {swapApprovals.length > 0 && (
+            <span className="ml-auto bg-orange-500 text-white text-xs rounded-full px-2 py-0.5">{swapApprovals.length}</span>
           )}
         </button>
       </aside>
@@ -282,14 +282,14 @@ const ManagerDashboard = () => {
             </div>
 
             {/* Pending Approvals Alert */}
-            {pendingApprovals.total_pending > 0 && (
+            {totalPending > 0 && (
               <div className="mb-6 p-4 bg-orange-50 border border-orange-200 rounded-lg flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <AlertCircle size={24} className="text-orange-600" />
                   <div>
-                    <p className="font-medium text-orange-800">You have {pendingApprovals.total_pending} pending approval(s)</p>
+                    <p className="font-medium text-orange-800">You have {totalPending} pending approval(s)</p>
                     <p className="text-sm text-orange-600">
-                      {pendingApprovals.leave_requests.length} leave, {pendingApprovals.day_requests.length} day requests, {pendingApprovals.swap_requests.length} shift swaps
+                      {leaveApprovals.length} leave, {dayApprovals.length} day requests, {swapApprovals.length} shift swaps
                     </p>
                   </div>
                 </div>
