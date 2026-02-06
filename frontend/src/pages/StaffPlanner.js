@@ -183,6 +183,65 @@ const StaffPlanner = () => {
   const daysInMonth = getDaysInMonth();
   const todayStr = today.toISOString().split('T')[0];
 
+  // Build week boundaries (Mon-Sun) and column structure
+  const buildColumns = () => {
+    const cols = [];
+    const weeks = [];
+    let currentWeek = { days: [], startDay: null };
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+      const dow = new Date(year, month - 1, day).getDay(); // 0=Sun
+      if (dow === 1 && currentWeek.days.length > 0) {
+        weeks.push(currentWeek);
+        cols.push({ type: 'week', weekIndex: weeks.length - 1 });
+        currentWeek = { days: [], startDay: day };
+      }
+      if (currentWeek.startDay === null) currentWeek.startDay = day;
+      currentWeek.days.push({ day, dateStr });
+      cols.push({ type: 'day', day, dateStr });
+    }
+    if (currentWeek.days.length > 0) {
+      weeks.push(currentWeek);
+      cols.push({ type: 'week', weekIndex: weeks.length - 1 });
+    }
+    return { cols, weeks };
+  };
+
+  const { cols, weeks } = buildColumns();
+
+  // Calculate weekly hours for an employee
+  const getWeeklyHours = (empId, weekDays) => {
+    if (!plannerData) return 0;
+    let total = 0;
+    for (const wd of weekDays) {
+      const shift = plannerData.shifts.find(s => s.employee_id === empId && s.shift_date === wd.dateStr);
+      if (shift) total += TEMPLATE_HOURS[shift.template] || 0;
+    }
+    return total;
+  };
+
+  // Calculate monthly total hours
+  const getMonthlyHours = (empId) => {
+    if (!plannerData) return 0;
+    return plannerData.shifts
+      .filter(s => s.employee_id === empId)
+      .reduce((sum, s) => sum + (TEMPLATE_HOURS[s.template] || 0), 0);
+  };
+
+  // Hours color: red=under, green=at/ok, amber=overtime
+  const getHoursColor = (hours, target) => {
+    if (hours < target) return { bg: 'bg-red-50', text: 'text-red-700', border: 'border-red-300' };
+    if (hours > target) return { bg: 'bg-amber-50', text: 'text-amber-700', border: 'border-amber-300' };
+    return { bg: 'bg-green-50', text: 'text-green-700', border: 'border-green-300' };
+  };
+
+  // Coverage per shift for a day
+  const getDayCoverage = (dateStr) => {
+    if (!plannerData) return {};
+    const cov = plannerData.coverage[dateStr] || {};
+    return cov;
+  };
+
   if (loading || !plannerData) {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
