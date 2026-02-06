@@ -106,6 +106,14 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/manager/planner"
+          element={
+            <ProtectedRoute allowedRoles={['manager', 'admin']}>
+              <StaffPlanner />
+            </ProtectedRoute>
+          }
+        />
         
         {/* Catch all - redirect to scan login */}
         <Route path="*" element={<Navigate to="/" replace />} />
