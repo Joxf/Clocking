@@ -714,6 +714,283 @@ async def get_today_attendance(current_user: dict = Depends(get_current_user)):
     
     return {"date": today_start.isoformat(), "records": result}
 
+@api_router.get("/attendance/calendar")
+async def get_attendance_calendar(year: int, month: int, current_user: dict = Depends(get_current_user)):
+    """Get attendance + coverage data for a full month calendar view"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    import calendar as cal_mod
+    days_in_month = cal_mod.monthrange(year, month)[1]
+    first = f"{year}-{month:02d}-01"
+    last = f"{year}-{month:02d}-{days_in_month:02d}"
+
+    care_home_id = current_user["care_home_id"]
+
+    # Shifts for coverage
+    shifts = await db.shifts.find({
+        "care_home_id": care_home_id,
+        "shift_date": {"$gte": first, "$lte": last},
+        "status": {"$in": ["scheduled", "completed"]}
+    }, {"_id": 0}).to_list(5000)
+
+    # Attendance records
+    attendance = await db.attendance.find({
+        "care_home_id": care_home_id,
+        "date": {"$gte": first, "$lte": last}
+    }, {"_id": 0}).to_list(5000)
+
+    # Staff
+    staff = await db.employees.find(
+        {"care_home_id": care_home_id, "status": "active", "role": "staff"},
+        {"_id": 0, "id": 1, "employee_id": 1, "first_name": 1, "last_name": 1, "job_title": 1, "employment_type": 1}
+    ).to_list(200)
+    job_map = {e["id"]: e["job_title"] for e in staff}
+
+    days = {}
+    for day in range(1, days_in_month + 1):
+        ds = f"{year}-{month:02d}-{day:02d}"
+        day_shifts = [s for s in shifts if s["shift_date"] == ds]
+        day_att = [a for a in attendance if a.get("date") == ds]
+        att_map = {a["employee_id"]: a for a in day_att}
+
+        # Coverage per template
+        cov = {}
+        for tpl_key, tpl in SHIFT_TEMPLATES.items():
+            tpl_shifts = [s for s in day_shifts if s.get("template") == tpl_key]
+            nurse_c = sum(1 for s in tpl_shifts if job_map.get(s["employee_id"]) == "nurse")
+            carer_c = sum(1 for s in tpl_shifts if job_map.get(s["employee_id"]) in ("carer", "senior_carer"))
+            cov[tpl_key] = {"nurses": nurse_c, "carers": carer_c, "total": len(tpl_shifts)}
+
+        # Late / no-show counts
+        scheduled_count = len(set(s["employee_id"] for s in day_shifts))
+        clocked_in_ids = set(a["employee_id"] for a in day_att if a.get("clock_in"))
+        late_count = 0
+        no_show_count = 0
+        for s in day_shifts:
+            att = att_map.get(s["employee_id"])
+            if not att or not att.get("clock_in"):
+                # Only flag no-show for past dates
+                if ds <= datetime.now(timezone.utc).strftime("%Y-%m-%d"):
+                    no_show_count += 1
+            else:
+                # Check late: clock_in > shift start + 15 min
+                try:
+                    ci = datetime.fromisoformat(att["clock_in"].replace("Z", "+00:00"))
+                    shift_start = datetime.fromisoformat(f"{ds}T{s['start_time']}:00+00:00")
+                    if (ci - shift_start).total_seconds() > 900:
+                        late_count += 1
+                except (ValueError, TypeError):
+                    pass
+
+        days[ds] = {
+            "scheduled": scheduled_count,
+            "clocked_in": len(clocked_in_ids),
+            "late": late_count,
+            "no_show": no_show_count,
+            "coverage": cov
+        }
+
+    return {"year": year, "month": month, "days": days}
+
+@api_router.get("/attendance/day-detail")
+async def get_day_detail(date: str, current_user: dict = Depends(get_current_user)):
+    """Get detailed attendance and staffing for a specific day"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    care_home_id = current_user["care_home_id"]
+
+    shifts = await db.shifts.find({
+        "care_home_id": care_home_id, "shift_date": date,
+        "status": {"$in": ["scheduled", "completed"]}
+    }, {"_id": 0}).to_list(200)
+
+    attendance = await db.attendance.find({
+        "care_home_id": care_home_id, "date": date
+    }, {"_id": 0}).to_list(200)
+    att_map = {a["employee_id"]: a for a in attendance}
+
+    staff_ids = list(set(s["employee_id"] for s in shifts) | set(a["employee_id"] for a in attendance))
+    staff = await db.employees.find(
+        {"id": {"$in": staff_ids}},
+        {"_id": 0, "id": 1, "employee_id": 1, "first_name": 1, "last_name": 1, "job_title": 1, "employment_type": 1}
+    ).to_list(200)
+    emp_map = {e["id"]: e for e in staff}
+
+    # Build per-shift detail
+    shift_groups = {}
+    for tpl_key, tpl in SHIFT_TEMPLATES.items():
+        tpl_shifts = [s for s in shifts if s.get("template") == tpl_key]
+        members = []
+        for s in tpl_shifts:
+            emp = emp_map.get(s["employee_id"], {})
+            att = att_map.get(s["employee_id"])
+            clock_in = att.get("clock_in") if att else None
+            clock_out = att.get("clock_out") if att else None
+
+            status = "scheduled"
+            if clock_in:
+                try:
+                    ci = datetime.fromisoformat(clock_in.replace("Z", "+00:00"))
+                    shift_start = datetime.fromisoformat(f"{date}T{s['start_time']}:00+00:00")
+                    status = "late" if (ci - shift_start).total_seconds() > 900 else "present"
+                except (ValueError, TypeError):
+                    status = "present"
+            elif date <= datetime.now(timezone.utc).strftime("%Y-%m-%d"):
+                status = "no_show"
+
+            members.append({
+                "shift_id": s["id"],
+                "employee_id": emp.get("employee_id", ""),
+                "name": f"{emp.get('first_name','')} {emp.get('last_name','')}",
+                "job_title": emp.get("job_title", ""),
+                "employment_type": emp.get("employment_type", "permanent"),
+                "clock_in": clock_in,
+                "clock_out": clock_out,
+                "status": status,
+                "attendance_id": att.get("id") if att else None,
+                "is_agency_cover": s.get("is_agency_cover", False)
+            })
+        nurse_c = sum(1 for m in members if m["job_title"] == "nurse")
+        carer_c = sum(1 for m in members if m["job_title"] in ("carer", "senior_carer"))
+        baseline_met = nurse_c >= COVERAGE_BASELINE["nurse"] and carer_c >= COVERAGE_BASELINE["carer"]
+        overstaffed = nurse_c > COVERAGE_BASELINE["nurse"] + 1 and carer_c > COVERAGE_BASELINE["carer"] + 2
+
+        color = "green" if baseline_met else "red"
+        if overstaffed:
+            color = "blue"
+
+        shift_groups[tpl_key] = {
+            "label": tpl["label"], "start": tpl["start"], "end": tpl["end"],
+            "members": members, "total": len(members),
+            "nurses": nurse_c, "carers": carer_c,
+            "baseline_met": baseline_met, "overstaffed": overstaffed, "color": color
+        }
+
+    return {"date": date, "shifts": shift_groups, "baseline": COVERAGE_BASELINE}
+
+@api_router.put("/attendance/adjust")
+async def adjust_attendance(
+    employee_id: str, date: str, clock_in: str = None, clock_out: str = None, reason: str = "",
+    current_user: dict = Depends(get_current_user)
+):
+    """Manually adjust attendance with audit trail"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    care_home_id = current_user["care_home_id"]
+    att = await db.attendance.find_one({"care_home_id": care_home_id, "employee_id": employee_id, "date": date}, {"_id": 0})
+
+    old_clock_in = att.get("clock_in") if att else None
+    old_clock_out = att.get("clock_out") if att else None
+
+    if att:
+        update_fields = {}
+        if clock_in is not None:
+            update_fields["clock_in"] = clock_in
+        if clock_out is not None:
+            update_fields["clock_out"] = clock_out
+        if update_fields:
+            await db.attendance.update_one({"id": att["id"]}, {"$set": update_fields})
+    else:
+        att = {
+            "id": str(uuid.uuid4()),
+            "employee_id": employee_id,
+            "care_home_id": care_home_id,
+            "date": date,
+            "clock_in": clock_in,
+            "clock_out": clock_out,
+            "created_at": datetime.now(timezone.utc).isoformat()
+        }
+        await db.attendance.insert_one(att)
+
+    # Audit log
+    await db.attendance_audit.insert_one({
+        "id": str(uuid.uuid4()),
+        "attendance_date": date,
+        "employee_id": employee_id,
+        "adjusted_by": current_user["id"],
+        "adjusted_by_name": f"{current_user['first_name']} {current_user['last_name']}",
+        "old_clock_in": old_clock_in,
+        "new_clock_in": clock_in,
+        "old_clock_out": old_clock_out,
+        "new_clock_out": clock_out,
+        "reason": reason,
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
+
+    return {"success": True}
+
+@api_router.get("/attendance/audit")
+async def get_attendance_audit(date: str = None, employee_id: str = None, current_user: dict = Depends(get_current_user)):
+    """Get audit trail for attendance adjustments"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+    query = {}
+    if date:
+        query["attendance_date"] = date
+    if employee_id:
+        query["employee_id"] = employee_id
+    audits = await db.attendance_audit.find(query, {"_id": 0}).sort("timestamp", -1).to_list(100)
+    return {"audits": audits}
+
+@api_router.get("/attendance/wtd-alerts")
+async def get_wtd_alerts(year: int, month: int, current_user: dict = Depends(get_current_user)):
+    """Working Time Directive alerts: >48h/week or <11h rest gap"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    import calendar as cal_mod
+    days_in_month = cal_mod.monthrange(year, month)[1]
+    first = f"{year}-{month:02d}-01"
+    last = f"{year}-{month:02d}-{days_in_month:02d}"
+
+    staff = await db.employees.find(
+        {"care_home_id": current_user["care_home_id"], "status": "active", "role": "staff"},
+        {"_id": 0, "id": 1, "employee_id": 1, "first_name": 1, "last_name": 1}
+    ).to_list(200)
+
+    shifts = await db.shifts.find({
+        "care_home_id": current_user["care_home_id"],
+        "shift_date": {"$gte": first, "$lte": last},
+        "status": {"$in": ["scheduled", "completed"]}
+    }, {"_id": 0}).to_list(5000)
+
+    alerts = []
+    for emp in staff:
+        emp_shifts = sorted([s for s in shifts if s["employee_id"] == emp["id"]], key=lambda s: s["shift_date"])
+        name = f"{emp['first_name']} {emp['last_name']}"
+
+        # Check weekly hours (>48h)
+        from collections import defaultdict
+        week_hours = defaultdict(float)
+        for s in emp_shifts:
+            d = datetime.fromisoformat(s["shift_date"])
+            week_num = d.isocalendar()[1]
+            week_hours[week_num] += SHIFT_TEMPLATES.get(s.get("template", ""), {}).get("hours", 0)
+        for wk, hrs in week_hours.items():
+            if hrs > 48:
+                alerts.append({"type": "weekly_hours", "employee": name, "employee_id": emp["employee_id"], "message": f"Week {wk}: {hrs}h scheduled (max 48h)", "severity": "high"})
+
+        # Check rest gaps (<11h)
+        for i in range(1, len(emp_shifts)):
+            try:
+                prev_end_str = emp_shifts[i-1]["end_time"]
+                prev_date = emp_shifts[i-1]["shift_date"]
+                curr_start_str = emp_shifts[i]["start_time"]
+                curr_date = emp_shifts[i]["shift_date"]
+                _, prev_end = parse_shift_times(emp_shifts[i-1])
+                curr_start, _ = parse_shift_times(emp_shifts[i])
+                gap = (curr_start - prev_end).total_seconds() / 3600
+                if 0 < gap < MIN_REST_HOURS:
+                    alerts.append({"type": "rest_gap", "employee": name, "employee_id": emp["employee_id"],
+                        "message": f"{gap:.0f}h rest between {prev_date} and {curr_date} (min {MIN_REST_HOURS}h)", "severity": "high"})
+            except (ValueError, TypeError):
+                pass
+
+    return {"year": year, "month": month, "alerts": alerts}
+
 # ============ EMPLOYEE ROUTES ============
 
 @api_router.get("/employees")
