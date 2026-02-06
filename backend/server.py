@@ -283,6 +283,43 @@ class ShiftSwapCreateEnhanced(BaseModel):
     reason: Optional[str] = None
     message_to_manager: Optional[str] = None
 
+class PlannerAssignRequest(BaseModel):
+    employee_id: str
+    shift_date: str
+    template: str  # early, late, night, long_day
+    shift_type: str = "regular"  # regular, overtime
+    is_agency_cover: bool = False
+    notes: Optional[str] = None
+    force: bool = False  # Override warnings
+
+class PlannerMoveRequest(BaseModel):
+    shift_id: str
+    new_date: str
+    new_employee_id: Optional[str] = None
+    force: bool = False
+
+class PlannerBulkAssignRequest(BaseModel):
+    assignments: list  # List of {employee_id, shift_date, template}
+    force: bool = False
+
+# ============ SHIFT TEMPLATES ============
+
+SHIFT_TEMPLATES = {
+    "early":    {"label": "Early",    "start": "08:00", "end": "14:00", "hours": 6,  "color": "#FBBF24"},
+    "late":     {"label": "Late",     "start": "14:00", "end": "20:00", "hours": 6,  "color": "#60A5FA"},
+    "night":    {"label": "Night",    "start": "20:00", "end": "08:00", "hours": 12, "color": "#A78BFA"},
+    "long_day": {"label": "Long Day", "start": "08:00", "end": "20:00", "hours": 12, "color": "#34D399"},
+}
+
+COVERAGE_BASELINE = {
+    "nurse": 2,
+    "carer": 6,  # care assistants (carer + senior_carer)
+}
+
+MIN_REST_HOURS = 11
+MAX_CONSECUTIVE_DAYS = 2
+MIN_WEEKLY_HOURS = 36.0
+
 # ============ HELPERS ============
 
 def hash_pin(pin: str) -> str:
