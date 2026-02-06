@@ -68,11 +68,12 @@ const ScanLogin = () => {
         });
       }
     } catch (err) {
-      setError(err.response?.data?.detail || 'Invalid QR code. Please try again.');
+      const detail = err.response?.data?.detail || 'Invalid QR code. Please try again.';
+      setError(detail);
       setTimeout(() => {
         setError('');
         startScanner();
-      }, 3000);
+      }, 4000);
     }
   };
 
