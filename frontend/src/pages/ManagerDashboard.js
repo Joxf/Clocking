@@ -369,55 +369,7 @@ const ManagerDashboard = () => {
 
         {/* Attendance Tab */}
         {activeTab === 'attendance' && (
-          <>
-            <div className="flex items-center justify-between mb-6">
-              <h1 className="frappe-page-title mb-0">Today's Attendance</h1>
-              <div className="relative">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input type="text" placeholder="Search staff..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="frappe-input pl-9 w-64" />
-              </div>
-            </div>
-            <div className="frappe-card">
-              <div className="overflow-x-auto">
-                <table className="frappe-table">
-                  <thead><tr><th>Employee</th><th>Role</th><th>Type</th><th>Clock In</th><th>Clock Out</th><th>Status</th></tr></thead>
-                  <tbody>
-                    {filteredAttendance.map((record) => {
-                      const emp = record.employee || {};
-                      const initials = `${(emp.first_name || '')[0] || ''}${(emp.last_name || '')[0] || ''}`;
-                      const isAgency = emp.employment_type === 'agency';
-                      return (
-                      <tr key={emp.id}>
-                        <td>
-                          <div className="flex items-center gap-3">
-                            <div className="frappe-avatar">{initials}</div>
-                            <div>
-                              <div className="font-medium text-gray-900">{emp.first_name} {emp.last_name}</div>
-                              <div className="text-xs text-gray-500">{emp.employee_id}</div>
-                            </div>
-                          </div>
-                        </td>
-                        <td>{getJobTitleBadge(emp.job_title)}</td>
-                        <td><span className={`frappe-badge ${isAgency ? 'frappe-badge-warning' : 'frappe-badge-gray'}`}>{isAgency ? 'Agency' : 'Permanent'}</span></td>
-                        <td>{record.clock_in ? new Date(record.clock_in).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
-                        <td>{record.clock_out ? new Date(record.clock_out).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
-                        <td>
-                          {record.clock_out ? (
-                            <span className="frappe-badge frappe-badge-gray flex items-center gap-1 w-fit"><CheckCircle size={12} />Complete</span>
-                          ) : record.clock_in ? (
-                            <span className="frappe-badge frappe-badge-success flex items-center gap-1 w-fit"><CheckCircle size={12} />Working</span>
-                          ) : (
-                            <span className="frappe-badge frappe-badge-error flex items-center gap-1 w-fit"><XCircle size={12} />Absent</span>
-                          )}
-                        </td>
-                      </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
+          <AttendanceCalendar token={token} />
         )}
 
         {/* Approvals Tab */}
