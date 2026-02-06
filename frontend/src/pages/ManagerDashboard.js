@@ -354,7 +354,8 @@ const ManagerDashboard = () => {
                           )}
                         </td>
                       </tr>
-                    ))}
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
