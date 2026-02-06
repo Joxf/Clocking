@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import NotificationBell from '../components/NotificationBell';
 import MessagesInbox from '../components/MessagesInbox';
+import AttendanceCalendar from '../components/AttendanceCalendar';
 import {
   LayoutDashboard,
   Users,
