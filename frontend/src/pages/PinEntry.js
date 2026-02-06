@@ -53,7 +53,7 @@ const PinEntry = () => {
   };
 
   const handleKeyPress = (digit) => {
-    if (pin.length < 4) {
+    if (pin.length < 4 && employeeData?.id) {
       const newPin = pin + digit;
       setPin(newPin);
       setError('');
