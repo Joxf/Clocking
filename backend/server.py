@@ -2004,6 +2004,41 @@ async def seed_shifts():
         "message": "Shifts seeded successfully"
     }
 
+@api_router.get("/auth/mobile-token/{employee_code}")
+async def get_mobile_token(employee_code: str):
+    """Generate current TOTP token for mobile authenticator simulation.
+    In production, this logic lives inside the mobile app, not the server."""
+    employee = await db.employees.find_one(
+        {"employee_id": employee_code},
+        {"_id": 0, "pin_hash": 0}
+    )
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    if not employee.get("totp_enrolled") or not employee.get("totp_secret"):
+        raise HTTPException(status_code=400, detail="Employee not enrolled for TOTP")
+
+    totp = pyotp.TOTP(employee["totp_secret"])
+    current_token = totp.now()
+    remaining = totp.interval - (datetime.now(timezone.utc).timestamp() % totp.interval)
+
+    return {
+        "employee_code": employee["employee_id"],
+        "employee_name": f"{employee['first_name']} {employee['last_name']}",
+        "role": employee["role"],
+        "token": current_token,
+        "qr_data": f"{employee['employee_id']}:{current_token}",
+        "remaining_seconds": int(remaining)
+    }
+
+@api_router.get("/auth/mobile-employees")
+async def list_mobile_employees():
+    """List active enrolled employees for mobile auth selection."""
+    employees = await db.employees.find(
+        {"status": "active", "totp_enrolled": True},
+        {"_id": 0, "employee_id": 1, "first_name": 1, "last_name": 1, "role": 1, "job_title": 1}
+    ).to_list(100)
+    return {"employees": employees}
+
 @api_router.get("/")
 async def root():
     return {"message": "CareHome Clocking System API", "version": "1.0.0"}
