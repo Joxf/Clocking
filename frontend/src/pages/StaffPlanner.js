@@ -9,6 +9,8 @@ import {
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
+const TEMPLATE_HOURS = { early: 6, late: 6, night: 12, long_day: 12 };
+
 const TEMPLATE_COLORS = {
   early:    { bg: 'bg-amber-100', border: 'border-amber-400', text: 'text-amber-800', dot: 'bg-amber-400', label: 'E' },
   late:     { bg: 'bg-blue-100', border: 'border-blue-400', text: 'text-blue-800', dot: 'bg-blue-400', label: 'L' },
