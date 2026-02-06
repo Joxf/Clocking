@@ -183,9 +183,17 @@ const ManagerDashboard = () => {
     return new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
   };
 
+  // Extract deeply nested properties to avoid babel plugin recursion
+  const leaveApprovals = pendingApprovals.leave_requests || [];
+  const dayApprovals = pendingApprovals.day_requests || [];
+  const swapApprovals = pendingApprovals.swap_requests || [];
+  const totalPending = pendingApprovals.total_pending || 0;
+
   const filteredAttendance = todayAttendance.filter(record => {
-    const fullName = `${record.employee.first_name} ${record.employee.last_name}`.toLowerCase();
-    return fullName.includes(searchTerm.toLowerCase()) || record.employee.employee_id.toLowerCase().includes(searchTerm.toLowerCase());
+    const emp = record.employee || {};
+    const fullName = `${emp.first_name || ''} ${emp.last_name || ''}`.toLowerCase();
+    const term = searchTerm.toLowerCase();
+    return fullName.includes(term) || (emp.employee_id || '').toLowerCase().includes(term);
   });
 
   if (loading) {
