@@ -12,6 +12,7 @@ const ScanLogin = () => {
   const [cameraError, setCameraError] = useState(false);
   const scannerRef = useRef(null);
   const html5QrCodeRef = useRef(null);
+  const processingRef = useRef(false);
 
   useEffect(() => {
     startScanner();
@@ -53,8 +54,11 @@ const ScanLogin = () => {
   };
 
   const onScanSuccess = async (decodedText) => {
+    // Guard: only process the first scan, ignore duplicates
+    if (processingRef.current) return;
+    processingRef.current = true;
     setScanning(false);
-    await stopScanner();
+    stopScanner();
     
     try {
       const result = await validateQR(decodedText);
@@ -72,6 +76,7 @@ const ScanLogin = () => {
       setError(detail);
       setTimeout(() => {
         setError('');
+        processingRef.current = false;
         startScanner();
       }, 4000);
     }
