@@ -71,14 +71,14 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 
 ## Backlog
 
-### P0 -- Phase 4B: Attendance & Compliance
-- Per-day calendar attendance view
-- Click-day dialog showing staffing numbers per shift
-- Color-coded coverage (red/green/light blue vs baseline)
-- Daily attendance confirmation, late arrival & no-show flags
-- Manual attendance adjustments with audit trail
-- Staff hours vs contract comparison
-- Working Time Directive alerts
+### P0 -- Phase 4B: Attendance & Compliance (Complete - Feb 6, 2026)
+- Attendance monthly calendar view on Manager Dashboard (replaced basic list)
+- Click-day dialog showing staffing per shift (Early/Late/Night/Long Day) with nurse + carer counts
+- Color-coded coverage: red border = below baseline, green = at baseline, blue = overstaffed
+- Late arrival detection (clock-in > shift start + 15min) and no-show flags
+- Manual attendance adjustment with audit trail (who, what changed, when, reason)
+- Working Time Directive alerts: >48h/week and <11h rest gap warnings
+- Audit trail endpoint for attendance changes
 
 ### P1 -- Phase 4C: Leave & Availability Enhancements
 - Leave approval workflow improvements (approved vs pending visibility)
