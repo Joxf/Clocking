@@ -149,7 +149,9 @@ const PinEntry = () => {
 
         <h1 className="kiosk-title">Welcome</h1>
         <p className="text-lg text-gray-600 mb-2">{employeeData?.name || employeeName || 'Loading...'}</p>
-        <p className="text-sm text-gray-400 mb-8">Enter your 4-digit PIN</p>
+        <p className="text-sm text-gray-400 mb-8">
+          {employeeData?.id ? 'Enter your 4-digit PIN' : 'Loading employee data...'}
+        </p>
 
         {/* PIN Display */}
         <div className="pin-display" data-testid="pin-display">
@@ -176,7 +178,7 @@ const PinEntry = () => {
               key={digit}
               data-testid={`pin-btn-${digit}`}
               onClick={() => handleKeyPress(digit.toString())}
-              disabled={loading}
+              disabled={loading || !employeeData?.id}
               className="pin-pad-btn"
             >
               {digit}
@@ -185,7 +187,7 @@ const PinEntry = () => {
           <button
             data-testid="pin-btn-clear"
             onClick={handleClear}
-            disabled={loading}
+            disabled={loading || !employeeData?.id}
             className="pin-pad-btn danger"
           >
             C
@@ -193,7 +195,7 @@ const PinEntry = () => {
           <button
             data-testid="pin-btn-0"
             onClick={() => handleKeyPress('0')}
-            disabled={loading}
+            disabled={loading || !employeeData?.id}
             className="pin-pad-btn"
           >
             0
@@ -201,7 +203,7 @@ const PinEntry = () => {
           <button
             data-testid="pin-btn-delete"
             onClick={handleDelete}
-            disabled={loading}
+            disabled={loading || !employeeData?.id}
             className="pin-pad-btn"
           >
             <Delete size={20} />
