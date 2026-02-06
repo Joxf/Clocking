@@ -252,7 +252,7 @@ const DayDetailDialog = ({ date, detail, loading, onClose, editingId, setEditing
                                   className="border border-gray-300 rounded px-1 py-0.5 text-[11px] w-20" />
                                 <input type="text" value={editForm.reason} onChange={e => setEditForm(f => ({ ...f, reason: e.target.value }))}
                                   className="border border-gray-300 rounded px-1 py-0.5 text-[11px] w-28" placeholder="Reason" />
-                                <button onClick={() => onSave(m.employee_id.replace(m.employee_id, (() => { const empIdField = m.employee_id; return m.name; })()) ? m.employee_id : m.employee_id)}
+                                <button onClick={() => onSave(m.employee_id)}
                                   className="p-1 bg-blue-500 text-white rounded hover:bg-blue-600" data-testid={`save-att-${m.shift_id}`}>
                                   <Save size={12} />
                                 </button>
