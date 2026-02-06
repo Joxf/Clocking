@@ -12,6 +12,7 @@ import StaffDashboard from "./pages/StaffDashboard";
 import StaffProfile from "./pages/StaffProfile";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
+import MobileAuth from "./pages/MobileAuth";
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
@@ -47,6 +48,7 @@ function AppContent() {
         {/* Public routes - Kiosk entry flow */}
         <Route path="/" element={<ScanLogin />} />
         <Route path="/pin" element={<PinEntry />} />
+        <Route path="/mobile-auth" element={<MobileAuth />} />
         
         {/* Staff Dashboard (Clock Screen) */}
         <Route
