@@ -53,31 +53,26 @@ const MonthlyCalendar = ({ onSwapClick }) => {
     return { bg: 'bg-purple-100', border: 'border-purple-400', text: 'text-purple-800', label: 'Night' };
   };
 
+  const allShifts = calendarData.shifts || [];
+  const allLeave = calendarData.leave || [];
+
   // Generate calendar grid
   const generateCalendar = () => {
     const firstDay = new Date(year, month - 1, 1);
     const lastDay = new Date(year, month, 0);
     const daysInMonth = lastDay.getDate();
-    const startDayOfWeek = firstDay.getDay(); // 0 = Sunday
-    
-    // Adjust to start week on Monday
+    const startDayOfWeek = firstDay.getDay();
     const adjustedStartDay = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
     
     const days = [];
-    
-    // Add empty cells for days before month starts
     for (let i = 0; i < adjustedStartDay; i++) {
       days.push({ day: null, shifts: [], leave: false });
     }
     
-    // Add days of month
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const dayShifts = calendarData.shifts.filter(s => s.shift_date === dateStr);
-      const hasLeave = calendarData.leave.some(l => 
-        dateStr >= l.start_date && dateStr <= l.end_date
-      );
-      
+      const dayShifts = allShifts.filter(s => s.shift_date === dateStr);
+      const hasLeave = allLeave.some(l => dateStr >= l.start_date && dateStr <= l.end_date);
       days.push({ day, dateStr, shifts: dayShifts, leave: hasLeave });
     }
     
