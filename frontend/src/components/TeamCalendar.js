@@ -53,27 +53,26 @@ const TeamCalendar = () => {
     }
   };
 
+  const allAbsences = calendarData || [];
+
   // Generate calendar grid
   const generateCalendar = () => {
     const firstDay = new Date(year, month - 1, 1);
     const lastDay = new Date(year, month, 0);
     const daysInMonth = lastDay.getDate();
     const startDayOfWeek = firstDay.getDay();
-    
     const adjustedStartDay = startDayOfWeek === 0 ? 6 : startDayOfWeek - 1;
     
     const days = [];
-    
     for (let i = 0; i < adjustedStartDay; i++) {
       days.push({ day: null, absences: [] });
     }
     
     for (let day = 1; day <= daysInMonth; day++) {
       const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-      const absences = calendarData.filter(l => 
+      const absences = allAbsences.filter(l => 
         dateStr >= l.start_date && dateStr <= l.end_date
       );
-      
       days.push({ day, dateStr, absences });
     }
     
