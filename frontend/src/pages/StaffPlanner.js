@@ -480,11 +480,21 @@ const StaffPlanner = () => {
                         </td>
                       );
                     })}
-                    {/* Monthly total */}
+                    {/* Monthly total with delta */}
                     <td className={`border-b border-l-2 border-l-gray-400 border-gray-200 px-1 py-1 text-center ${monthColor.bg}`}>
                       <div className={`text-[11px] font-bold ${monthColor.text}`} data-testid={`month-hours-${emp.employee_id}`}>
                         {monthlyHours}h
                       </div>
+                      {(() => {
+                        const delta = Math.round(monthlyHours - monthlyTarget);
+                        const deltaStr = delta === 0 ? '0' : delta > 0 ? `+${delta}` : `${delta}`;
+                        const deltaColor = delta === 0 ? 'text-green-600' : delta > 0 ? 'text-blue-600' : 'text-red-600';
+                        return (
+                          <div className={`text-[10px] font-semibold ${deltaColor}`} data-testid={`month-delta-${emp.employee_id}`}>
+                            {deltaStr}
+                          </div>
+                        );
+                      })()}
                     </td>
                   </tr>
                 );
