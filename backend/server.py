@@ -2066,6 +2066,466 @@ async def list_mobile_employees():
     ).to_list(100)
     return {"employees": employees}
 
+# ============ PLANNER ENDPOINTS ============
+
+def get_shift_hours(template_key):
+    t = SHIFT_TEMPLATES.get(template_key)
+    return t["hours"] if t else 0
+
+def parse_shift_times(shift):
+    """Get start/end as datetime objects for rest gap calculation"""
+    d = shift["shift_date"]
+    s = shift["start_time"]
+    e = shift["end_time"]
+    start_dt = datetime.fromisoformat(f"{d}T{s}:00")
+    if e < s:  # Night shift crosses midnight
+        end_date = (datetime.fromisoformat(d) + timedelta(days=1)).strftime("%Y-%m-%d")
+        end_dt = datetime.fromisoformat(f"{end_date}T{e}:00")
+    else:
+        end_dt = datetime.fromisoformat(f"{d}T{e}:00")
+    return start_dt, end_dt
+
+async def validate_assignment(employee_id, shift_date, template, care_home_id, exclude_shift_id=None):
+    """Validate a shift assignment against planner rules. Returns list of warnings."""
+    warnings = []
+    tpl = SHIFT_TEMPLATES.get(template)
+    if not tpl:
+        return [{"type": "error", "message": f"Unknown template: {template}"}]
+
+    new_start_str = tpl["start"]
+    new_end_str = tpl["end"]
+    new_start, new_end = parse_shift_times({"shift_date": shift_date, "start_time": new_start_str, "end_time": new_end_str})
+
+    # Get existing shifts for this employee in a ±5 day window
+    date_obj = datetime.fromisoformat(shift_date).date()
+    window_start = (date_obj - timedelta(days=5)).isoformat()
+    window_end = (date_obj + timedelta(days=5)).isoformat()
+
+    query = {
+        "employee_id": employee_id,
+        "shift_date": {"$gte": window_start, "$lte": window_end},
+        "status": {"$in": ["scheduled", "completed"]}
+    }
+    if exclude_shift_id:
+        query["id"] = {"$ne": exclude_shift_id}
+
+    existing = await db.shifts.find(query, {"_id": 0}).to_list(100)
+
+    # Check duplicate: already has a shift on this date
+    same_day = [s for s in existing if s["shift_date"] == shift_date]
+    if same_day:
+        warnings.append({"type": "error", "message": f"Employee already has a shift on {shift_date}"})
+        return warnings
+
+    # Check 11-hour rest gap
+    for s in existing:
+        ex_start, ex_end = parse_shift_times(s)
+        gap_before = (new_start - ex_end).total_seconds() / 3600
+        gap_after = (ex_start - new_end).total_seconds() / 3600
+        if 0 < gap_before < MIN_REST_HOURS:
+            warnings.append({
+                "type": "rest_gap",
+                "message": f"Only {gap_before:.1f}h rest after shift on {s['shift_date']} ({s['start_time']}-{s['end_time']}). Minimum is {MIN_REST_HOURS}h."
+            })
+        if 0 < gap_after < MIN_REST_HOURS:
+            warnings.append({
+                "type": "rest_gap",
+                "message": f"Only {gap_after:.1f}h rest before shift on {s['shift_date']} ({s['start_time']}-{s['end_time']}). Minimum is {MIN_REST_HOURS}h."
+            })
+
+    # Check consecutive days
+    shift_dates = sorted(set([s["shift_date"] for s in existing] + [shift_date]))
+    max_consecutive = 1
+    current_streak = 1
+    for i in range(1, len(shift_dates)):
+        d1 = datetime.fromisoformat(shift_dates[i - 1]).date()
+        d2 = datetime.fromisoformat(shift_dates[i]).date()
+        if (d2 - d1).days == 1:
+            current_streak += 1
+            max_consecutive = max(max_consecutive, current_streak)
+        else:
+            current_streak = 1
+    if max_consecutive > MAX_CONSECUTIVE_DAYS:
+        warnings.append({
+            "type": "consecutive",
+            "message": f"This creates {max_consecutive} consecutive working days. Maximum recommended is {MAX_CONSECUTIVE_DAYS}."
+        })
+
+    return warnings
+
+async def check_coverage(care_home_id, shift_date, template):
+    """Check if coverage baseline is met for a given shift on a date"""
+    tpl = SHIFT_TEMPLATES.get(template)
+    if not tpl:
+        return []
+
+    shifts_on_date = await db.shifts.find({
+        "care_home_id": care_home_id,
+        "shift_date": shift_date,
+        "start_time": tpl["start"],
+        "status": {"$in": ["scheduled", "completed"]}
+    }, {"_id": 0}).to_list(200)
+
+    emp_ids = [s["employee_id"] for s in shifts_on_date]
+    employees = await db.employees.find(
+        {"id": {"$in": emp_ids}},
+        {"_id": 0, "id": 1, "job_title": 1}
+    ).to_list(200)
+    job_map = {e["id"]: e["job_title"] for e in employees}
+
+    nurse_count = sum(1 for eid in emp_ids if job_map.get(eid) == "nurse")
+    carer_count = sum(1 for eid in emp_ids if job_map.get(eid) in ("carer", "senior_carer"))
+
+    alerts = []
+    if nurse_count < COVERAGE_BASELINE["nurse"]:
+        alerts.append({"type": "coverage", "message": f"{template} shift on {shift_date}: {nurse_count}/{COVERAGE_BASELINE['nurse']} nurses"})
+    if carer_count < COVERAGE_BASELINE["carer"]:
+        alerts.append({"type": "coverage", "message": f"{template} shift on {shift_date}: {carer_count}/{COVERAGE_BASELINE['carer']} care assistants"})
+    return alerts
+
+@api_router.get("/planner/templates")
+async def get_shift_templates():
+    return {"templates": SHIFT_TEMPLATES, "rules": {
+        "min_rest_hours": MIN_REST_HOURS,
+        "max_consecutive_days": MAX_CONSECUTIVE_DAYS,
+        "min_weekly_hours": MIN_WEEKLY_HOURS,
+        "coverage_baseline": COVERAGE_BASELINE
+    }}
+
+@api_router.get("/planner/monthly")
+async def get_monthly_planner(year: int, month: int, current_user: dict = Depends(get_current_user)):
+    """Get full monthly planner data: staff × days grid"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+
+    care_home = await db.care_homes.find_one({}, {"_id": 0})
+    if not care_home:
+        raise HTTPException(status_code=404, detail="No care home configured")
+
+    # Date range for the month
+    first_day = f"{year}-{month:02d}-01"
+    if month == 12:
+        last_day = f"{year + 1}-01-01"
+    else:
+        last_day = f"{year}-{month + 1:02d}-01"
+    last_date = (datetime.fromisoformat(last_day) - timedelta(days=1)).strftime("%Y-%m-%d")
+
+    # Get all active staff
+    staff = await db.employees.find(
+        {"status": {"$in": ["active", "on_leave"]}, "role": "staff"},
+        {"_id": 0, "pin_hash": 0, "totp_secret": 0}
+    ).to_list(200)
+
+    # Get all shifts for the month
+    shifts = await db.shifts.find({
+        "care_home_id": care_home["id"],
+        "shift_date": {"$gte": first_day, "$lte": last_date},
+        "status": {"$in": ["scheduled", "completed"]}
+    }, {"_id": 0}).to_list(5000)
+
+    # Get approved leave for the month
+    leave = await db.leave_requests.find({
+        "care_home_id": care_home["id"],
+        "status": "approved",
+        "start_date": {"$lte": last_date},
+        "end_date": {"$gte": first_day}
+    }, {"_id": 0}).to_list(500)
+
+    # Calculate weekly hours and overtime for each staff member
+    staff_stats = {}
+    for emp in staff:
+        emp_shifts = [s for s in shifts if s["employee_id"] == emp["id"]]
+        total_hours = sum(get_shift_hours(s.get("template", "custom")) for s in emp_shifts)
+        contract = emp.get("contract_hours", 36.0)
+        # Weeks in month (approximate)
+        import calendar
+        days_in_month = calendar.monthrange(year, month)[1]
+        weeks = days_in_month / 7
+        expected_hours = contract * weeks
+        overtime = max(0, total_hours - expected_hours)
+        staff_stats[emp["id"]] = {
+            "total_hours": total_hours,
+            "expected_hours": round(expected_hours, 1),
+            "overtime_hours": round(overtime, 1),
+            "shift_count": len(emp_shifts)
+        }
+
+    # Coverage per day per template
+    import calendar
+    days_in_month = calendar.monthrange(year, month)[1]
+    coverage = {}
+    emp_job_map = {e["id"]: e["job_title"] for e in staff}
+    for day in range(1, days_in_month + 1):
+        date_str = f"{year}-{month:02d}-{day:02d}"
+        day_shifts = [s for s in shifts if s["shift_date"] == date_str]
+        day_coverage = {}
+        for tpl_key in SHIFT_TEMPLATES:
+            tpl = SHIFT_TEMPLATES[tpl_key]
+            tpl_shifts = [s for s in day_shifts if s.get("template") == tpl_key]
+            nurse_c = sum(1 for s in tpl_shifts if emp_job_map.get(s["employee_id"]) == "nurse")
+            carer_c = sum(1 for s in tpl_shifts if emp_job_map.get(s["employee_id"]) in ("carer", "senior_carer"))
+            total = len(tpl_shifts)
+            day_coverage[tpl_key] = {
+                "nurses": nurse_c, "carers": carer_c, "total": total,
+                "nurse_ok": nurse_c >= COVERAGE_BASELINE["nurse"],
+                "carer_ok": carer_c >= COVERAGE_BASELINE["carer"]
+            }
+        coverage[date_str] = day_coverage
+
+    return {
+        "year": year, "month": month,
+        "staff": staff,
+        "shifts": shifts,
+        "leave": leave,
+        "staff_stats": staff_stats,
+        "coverage": coverage,
+        "templates": SHIFT_TEMPLATES
+    }
+
+@api_router.post("/planner/assign")
+async def assign_shift(req: PlannerAssignRequest, current_user: dict = Depends(get_current_user)):
+    """Assign a shift to an employee with rule validation"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+
+    care_home = await db.care_homes.find_one({}, {"_id": 0})
+    if not care_home:
+        raise HTTPException(status_code=404, detail="No care home configured")
+
+    tpl = SHIFT_TEMPLATES.get(req.template)
+    if not tpl:
+        raise HTTPException(status_code=400, detail=f"Unknown template: {req.template}")
+
+    # Validate assignment rules
+    warnings = await validate_assignment(req.employee_id, req.shift_date, req.template, care_home["id"])
+    errors = [w for w in warnings if w["type"] == "error"]
+    if errors:
+        raise HTTPException(status_code=400, detail=errors[0]["message"])
+
+    rule_warnings = [w for w in warnings if w["type"] != "error"]
+    if rule_warnings and not req.force:
+        return {"success": False, "warnings": rule_warnings, "requires_confirmation": True}
+
+    # Create the shift
+    shift = Shift(
+        employee_id=req.employee_id,
+        care_home_id=care_home["id"],
+        shift_date=req.shift_date,
+        start_time=tpl["start"],
+        end_time=tpl["end"],
+        template=req.template,
+        shift_type=req.shift_type,
+        is_agency_cover=req.is_agency_cover,
+        notes=req.notes,
+        assigned_by=current_user["id"]
+    )
+    await db.shifts.insert_one(serialize_datetime(shift.model_dump()))
+
+    # Check coverage after assignment
+    cov_alerts = await check_coverage(care_home["id"], req.shift_date, req.template)
+
+    return {
+        "success": True,
+        "shift": {k: v for k, v in shift.model_dump().items() if k != "care_home_id"},
+        "coverage_alerts": cov_alerts,
+        "warnings_overridden": rule_warnings if req.force else []
+    }
+
+@api_router.delete("/planner/unassign/{shift_id}")
+async def unassign_shift(shift_id: str, current_user: dict = Depends(get_current_user)):
+    """Remove a shift assignment"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+
+    result = await db.shifts.delete_one({"id": shift_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Shift not found")
+    return {"success": True}
+
+@api_router.put("/planner/move")
+async def move_shift(req: PlannerMoveRequest, current_user: dict = Depends(get_current_user)):
+    """Move a shift to a new date or employee (drag and drop)"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+
+    shift = await db.shifts.find_one({"id": req.shift_id}, {"_id": 0})
+    if not shift:
+        raise HTTPException(status_code=404, detail="Shift not found")
+
+    target_emp = req.new_employee_id or shift["employee_id"]
+    template = shift.get("template", "custom")
+
+    # Validate the move
+    warnings = await validate_assignment(target_emp, req.new_date, template, shift["care_home_id"], exclude_shift_id=req.shift_id)
+    errors = [w for w in warnings if w["type"] == "error"]
+    if errors:
+        raise HTTPException(status_code=400, detail=errors[0]["message"])
+
+    rule_warnings = [w for w in warnings if w["type"] != "error"]
+    if rule_warnings and not req.force:
+        return {"success": False, "warnings": rule_warnings, "requires_confirmation": True}
+
+    update = {"shift_date": req.new_date}
+    if req.new_employee_id:
+        update["employee_id"] = req.new_employee_id
+    await db.shifts.update_one({"id": req.shift_id}, {"$set": update})
+
+    return {"success": True, "warnings_overridden": rule_warnings if req.force else []}
+
+@api_router.get("/planner/overtime")
+async def get_overtime(year: int, month: int, current_user: dict = Depends(get_current_user)):
+    """Get overtime report for all staff"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+
+    import calendar
+    days_in_month = calendar.monthrange(year, month)[1]
+    first_day = f"{year}-{month:02d}-01"
+    last_day = f"{year}-{month:02d}-{days_in_month:02d}"
+
+    staff = await db.employees.find(
+        {"status": "active", "role": "staff"},
+        {"_id": 0, "id": 1, "employee_id": 1, "first_name": 1, "last_name": 1, "job_title": 1, "employment_type": 1, "contract_hours": 1}
+    ).to_list(200)
+
+    shifts = await db.shifts.find({
+        "shift_date": {"$gte": first_day, "$lte": last_day},
+        "status": {"$in": ["scheduled", "completed"]}
+    }, {"_id": 0}).to_list(5000)
+
+    weeks = days_in_month / 7
+    result = []
+    for emp in staff:
+        emp_shifts = [s for s in shifts if s["employee_id"] == emp["id"]]
+        total = sum(get_shift_hours(s.get("template", "custom")) for s in emp_shifts)
+        contract = emp.get("contract_hours", 36.0)
+        expected = contract * weeks
+        result.append({
+            "employee_id": emp["employee_id"],
+            "name": f"{emp['first_name']} {emp['last_name']}",
+            "job_title": emp["job_title"],
+            "employment_type": emp.get("employment_type", "permanent"),
+            "contract_hours": contract,
+            "scheduled_hours": total,
+            "expected_hours": round(expected, 1),
+            "overtime_hours": round(max(0, total - expected), 1),
+            "shift_count": len(emp_shifts)
+        })
+
+    return {"year": year, "month": month, "overtime": result}
+
+@api_router.post("/planner/validate")
+async def validate_shift_assignment(req: PlannerAssignRequest, current_user: dict = Depends(get_current_user)):
+    """Validate a proposed shift assignment without creating it"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+
+    care_home = await db.care_homes.find_one({}, {"_id": 0})
+    warnings = await validate_assignment(req.employee_id, req.shift_date, req.template, care_home["id"] if care_home else "")
+    return {"warnings": warnings, "valid": len([w for w in warnings if w["type"] == "error"]) == 0}
+
+@api_router.get("/planner/coverage")
+async def get_coverage_report(date: str, current_user: dict = Depends(get_current_user)):
+    """Get detailed coverage for a specific date"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+
+    care_home = await db.care_homes.find_one({}, {"_id": 0})
+    if not care_home:
+        return {"date": date, "shifts": {}}
+
+    shifts = await db.shifts.find({
+        "care_home_id": care_home["id"],
+        "shift_date": date,
+        "status": {"$in": ["scheduled", "completed"]}
+    }, {"_id": 0}).to_list(200)
+
+    emp_ids = list(set(s["employee_id"] for s in shifts))
+    employees = await db.employees.find(
+        {"id": {"$in": emp_ids}},
+        {"_id": 0, "id": 1, "first_name": 1, "last_name": 1, "job_title": 1, "employment_type": 1, "employee_id": 1}
+    ).to_list(200)
+    emp_map = {e["id"]: e for e in employees}
+
+    result = {}
+    for tpl_key, tpl in SHIFT_TEMPLATES.items():
+        tpl_shifts = [s for s in shifts if s.get("template") == tpl_key]
+        staff_list = []
+        for s in tpl_shifts:
+            emp = emp_map.get(s["employee_id"], {})
+            staff_list.append({
+                "shift_id": s["id"],
+                "employee_id": emp.get("employee_id", ""),
+                "name": f"{emp.get('first_name','')} {emp.get('last_name','')}",
+                "job_title": emp.get("job_title", ""),
+                "employment_type": emp.get("employment_type", "permanent"),
+                "is_agency_cover": s.get("is_agency_cover", False)
+            })
+        nurse_c = sum(1 for st in staff_list if st["job_title"] == "nurse")
+        carer_c = sum(1 for st in staff_list if st["job_title"] in ("carer", "senior_carer"))
+        baseline_met = nurse_c >= COVERAGE_BASELINE["nurse"] and carer_c >= COVERAGE_BASELINE["carer"]
+        overstaffed = nurse_c > COVERAGE_BASELINE["nurse"] + 1 and carer_c > COVERAGE_BASELINE["carer"] + 2
+        result[tpl_key] = {
+            "label": tpl["label"], "start": tpl["start"], "end": tpl["end"],
+            "staff": staff_list, "total": len(staff_list),
+            "nurses": nurse_c, "carers": carer_c,
+            "baseline_met": baseline_met, "overstaffed": overstaffed
+        }
+
+    return {"date": date, "shifts": result, "baseline": COVERAGE_BASELINE}
+
+@api_router.post("/planner/seed-month")
+async def seed_planner_month(year: int, month: int, current_user: dict = Depends(get_current_user)):
+    """Seed a month with sample shift assignments for testing"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+
+    care_home = await db.care_homes.find_one({}, {"_id": 0})
+    if not care_home:
+        raise HTTPException(status_code=404, detail="No care home configured")
+
+    import calendar
+    days_in_month = calendar.monthrange(year, month)[1]
+
+    staff = await db.employees.find(
+        {"status": "active", "role": "staff", "care_home_id": care_home["id"]},
+        {"_id": 0}
+    ).to_list(200)
+    if not staff:
+        return {"success": False, "message": "No active staff found"}
+
+    # Clear existing shifts for this month
+    first_day = f"{year}-{month:02d}-01"
+    last_day = f"{year}-{month:02d}-{days_in_month:02d}"
+    await db.shifts.delete_many({"care_home_id": care_home["id"], "shift_date": {"$gte": first_day, "$lte": last_day}})
+
+    templates_list = ["early", "late", "night", "long_day"]
+    created = 0
+
+    for emp_idx, emp in enumerate(staff):
+        for day in range(1, days_in_month + 1):
+            # Give each staff 4-5 shifts per week (skip ~2 days)
+            if (day + emp_idx) % 7 in (0, 6):
+                continue
+            date_str = f"{year}-{month:02d}-{day:02d}"
+            tpl_key = templates_list[(emp_idx + day) % len(templates_list)]
+            tpl = SHIFT_TEMPLATES[tpl_key]
+            shift = Shift(
+                employee_id=emp["id"],
+                care_home_id=care_home["id"],
+                shift_date=date_str,
+                start_time=tpl["start"],
+                end_time=tpl["end"],
+                template=tpl_key,
+                shift_type="regular",
+                is_agency_cover=emp.get("employment_type") == "agency",
+                assigned_by=current_user["id"]
+            )
+            await db.shifts.insert_one(serialize_datetime(shift.model_dump()))
+            created += 1
+
+    return {"success": True, "shifts_created": created}
+
 @api_router.get("/")
 async def root():
     return {"message": "CareHome Clocking System API", "version": "1.0.0"}
