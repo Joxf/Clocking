@@ -511,11 +511,11 @@ const ManagerDashboard = () => {
             <div className="frappe-card">
               <div className="frappe-card-header">Swaps Pending Your Approval</div>
               <div className="frappe-card-content">
-                {pendingApprovals.swap_requests.length === 0 ? (
+                {swapApprovals.length === 0 ? (
                   <p className="text-gray-500 text-center py-8">No shift swaps pending approval</p>
                 ) : (
                   <div className="space-y-4">
-                    {pendingApprovals.swap_requests.map((swap) => (
+                    {swapApprovals.map((swap) => (
                       <div key={swap.id} className="p-4 border border-orange-200 bg-orange-50 rounded-lg">
                         <div className="flex items-start justify-between">
                           <div>
