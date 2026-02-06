@@ -71,8 +71,9 @@ class Employee(BaseModel):
     phone: Optional[str] = None
     role: str  # staff, manager, admin
     job_title: str  # nurse, senior_carer, carer, activities, kitchen, maintenance
-    employment_type: str = "permanent"  # permanent, agency
+    employment_type: str = "permanent"  # permanent, agency, bank
     status: str = "active"  # active, inactive, on_leave
+    contract_hours: float = 36.0  # Weekly contracted hours
     pin_hash: Optional[str] = None  # Hashed 4-digit PIN
     totp_secret: Optional[str] = None  # 32-char TOTP secret
     totp_enrolled: bool = False
