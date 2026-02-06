@@ -541,59 +541,6 @@ const ShiftCell = ({ shift, onRemove, onDragStart, empId }) => {
   );
 };
 
-const CoverageDetailRow = ({ cols, coverage, todayStr, year, month }) => {
-  if (!coverage) return null;
-  const BASELINE_N = 2;
-  const BASELINE_C = 6;
-  return (
-    <div className="bg-white border-b border-gray-200 overflow-x-auto">
-      <table className="min-w-full border-collapse text-[9px]">
-        <tbody>
-          {['early', 'late', 'night'].map(tplKey => {
-            const style = TEMPLATE_COLORS[tplKey];
-            const lbl = tplKey === 'early' ? 'Early' : tplKey === 'late' ? 'Late' : 'Night';
-            return (
-              <tr key={tplKey}>
-                <td className={`sticky left-0 z-10 bg-white px-2 py-0.5 border-r border-gray-200 min-w-[160px] font-medium ${style.text}`}>
-                  <span className={`inline-block w-2 h-2 rounded-full ${style.dot} mr-1`} />{lbl}
-                </td>
-                {cols.map((col, ci) => {
-                  if (col.type === 'week') {
-                    return <td key={`wk${col.weekIndex}`} className="border-r border-l-2 border-l-gray-400 border-gray-200 bg-slate-100" />;
-                  }
-                  const cov = coverage[col.dateStr] || {};
-                  const shiftCov = cov[tplKey];
-                  if (!shiftCov || shiftCov.total === 0) {
-                    return <td key={col.day} className="border-r border-gray-200 text-center text-gray-300 px-0.5">-</td>;
-                  }
-                  const nOk = shiftCov.nurses >= BASELINE_N;
-                  const cOk = shiftCov.carers >= BASELINE_C;
-                  const allOk = nOk && cOk;
-                  const over = shiftCov.nurses > BASELINE_N + 1 || shiftCov.carers > BASELINE_C + 2;
-                  const bgClass = !allOk ? 'bg-red-100 text-red-700' : over ? 'bg-sky-100 text-sky-700' : 'bg-green-50 text-green-700';
-                  const isToday = col.dateStr === todayStr;
-                  const isMonday = new Date(year, month - 1, col.day).getDay() === 1 && col.day > 1;
-                  return (
-                    <td key={col.day} className={`border-r border-gray-200 text-center px-0 py-0 ${bgClass} ${isToday ? 'ring-1 ring-inset ring-blue-400' : ''} ${isMonday ? 'border-l-2 border-l-gray-300' : ''}`}
-                        title={`${lbl}: ${shiftCov.nurses}N ${shiftCov.carers}C (need ${BASELINE_N}N ${BASELINE_C}C)`}>
-                      <div className="leading-tight">
-                        <span className={`font-bold ${nOk ? '' : 'text-red-600'}`}>{shiftCov.nurses}N</span>
-                        {' '}
-                        <span className={`font-bold ${cOk ? '' : 'text-red-600'}`}>{shiftCov.carers}C</span>
-                      </div>
-                    </td>
-                  );
-                })}
-                <td className="border-l-2 border-l-gray-400 border-gray-200 bg-slate-100 min-w-[56px]" />
-              </tr>
-            );
-          })}
-        </tbody>
-      </table>
-    </div>
-  );
-};
-
 const WarningModal = ({ warnings, onConfirm, onCancel }) => (
   <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" data-testid="warning-modal">
     <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6">
