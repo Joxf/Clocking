@@ -327,18 +327,21 @@ const ManagerDashboard = () => {
                 <table className="frappe-table">
                   <thead><tr><th>Employee</th><th>Role</th><th>Clock In</th><th>Clock Out</th><th>Status</th></tr></thead>
                   <tbody>
-                    {todayAttendance.slice(0, 5).map((record) => (
-                      <tr key={record.employee.id}>
+                    {todayAttendance.slice(0, 5).map((record) => {
+                      const emp = record.employee || {};
+                      const initials = `${(emp.first_name || '')[0] || ''}${(emp.last_name || '')[0] || ''}`;
+                      return (
+                      <tr key={emp.id}>
                         <td>
                           <div className="flex items-center gap-3">
-                            <div className="frappe-avatar">{record.employee.first_name[0]}{record.employee.last_name[0]}</div>
+                            <div className="frappe-avatar">{initials}</div>
                             <div>
-                              <div className="font-medium text-gray-900">{record.employee.first_name} {record.employee.last_name}</div>
-                              <div className="text-xs text-gray-500">{record.employee.employee_id}</div>
+                              <div className="font-medium text-gray-900">{emp.first_name} {emp.last_name}</div>
+                              <div className="text-xs text-gray-500">{emp.employee_id}</div>
                             </div>
                           </div>
                         </td>
-                        <td>{getJobTitleBadge(record.employee.job_title)}</td>
+                        <td>{getJobTitleBadge(emp.job_title)}</td>
                         <td>{record.clock_in ? new Date(record.clock_in).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
                         <td>{record.clock_out ? new Date(record.clock_out).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : '--:--'}</td>
                         <td>
