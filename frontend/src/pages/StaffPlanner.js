@@ -341,49 +341,57 @@ const StaffPlanner = () => {
         </div>
       </div>
 
-      {/* Coverage summary bar */}
-      <CoverageSummary coverage={plannerData.coverage} daysInMonth={daysInMonth} year={year} month={month} todayStr={todayStr} />
+      {/* Coverage detail row */}
+      <CoverageDetailRow cols={cols} coverage={plannerData.coverage} todayStr={todayStr} year={year} month={month} />
 
       {/* Main grid */}
-      <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 230px)' }}>
-        <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 230px)' }}>
+      <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 260px)' }}>
+        <div className="overflow-y-auto" style={{ maxHeight: 'calc(100vh - 260px)' }}>
           <table className="min-w-full border-collapse text-xs">
             <thead className="sticky top-0 z-10 bg-gray-100">
               <tr>
                 <th className="sticky left-0 z-20 bg-gray-100 px-2 py-2 text-left font-medium text-gray-600 border-b border-r border-gray-200 min-w-[160px]">
                   <div className="flex items-center gap-1"><Users size={13} /> Staff ({filteredStaff.length})</div>
                 </th>
-                {Array.from({ length: daysInMonth }, (_, i) => {
-                  const day = i + 1;
-                  const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-                  const isToday = dateStr === todayStr;
-                  const dayName = new Date(year, month - 1, day).toLocaleDateString('en-GB', { weekday: 'short' });
-                  const isWeekend = [0, 6].includes(new Date(year, month - 1, day).getDay());
+                {cols.map((col, ci) => {
+                  if (col.type === 'week') {
+                    return (
+                      <th key={`wk${col.weekIndex}`} className="px-1 py-1.5 text-center font-semibold border-b border-r border-l-2 border-l-gray-400 border-gray-200 min-w-[48px] bg-slate-200 text-slate-700">
+                        <div className="text-[9px]">WK{col.weekIndex + 1}</div>
+                        <div className="text-[10px]">Hrs</div>
+                      </th>
+                    );
+                  }
+                  const isToday = col.dateStr === todayStr;
+                  const dayName = new Date(year, month - 1, col.day).toLocaleDateString('en-GB', { weekday: 'short' });
+                  const isWeekend = [0, 6].includes(new Date(year, month - 1, col.day).getDay());
+                  const isMonday = new Date(year, month - 1, col.day).getDay() === 1 && col.day > 1;
                   return (
                     <th
-                      key={day}
+                      key={col.day}
                       className={`px-0.5 py-1.5 text-center font-medium border-b border-r border-gray-200 min-w-[44px] ${
-                        isToday ? 'bg-blue-100 text-blue-700' : isWeekend ? 'bg-gray-50 text-gray-500' : 'text-gray-600'
-                      }`}
+                        isMonday ? 'border-l-2 border-l-gray-300' : ''
+                      } ${isToday ? 'bg-blue-100 text-blue-700' : isWeekend ? 'bg-gray-50 text-gray-500' : 'text-gray-600'}`}
                     >
                       <div className="text-[10px]">{dayName}</div>
-                      <div>{day}</div>
+                      <div>{col.day}</div>
                     </th>
                   );
                 })}
-                {showOvertimePanel && (
-                  <th className="px-2 py-1.5 text-center font-medium border-b border-gray-200 min-w-[80px] bg-orange-50 text-orange-700">
-                    <div className="flex items-center justify-center gap-1"><Clock size={12} /> Hours</div>
-                  </th>
-                )}
+                <th className="px-2 py-1.5 text-center font-semibold border-b border-l-2 border-l-gray-400 border-gray-200 min-w-[56px] bg-slate-200 text-slate-700">
+                  <div className="text-[10px]">Month</div>
+                  <div className="text-[10px]">Total</div>
+                </th>
               </tr>
             </thead>
             <tbody>
               {filteredStaff.map(emp => {
                 const empId = emp.id;
-                const empStats = plannerData.staff_stats[empId] || {};
                 const isAgency = emp.employment_type === 'agency';
-                const otData = overtimeData ? overtimeData.find(o => o.employee_id === emp.employee_id) : null;
+                const contract = emp.contract_hours || 36;
+                const monthlyHours = getMonthlyHours(empId);
+                const monthlyTarget = contract * (daysInMonth / 7);
+                const monthColor = getHoursColor(monthlyHours, monthlyTarget);
                 return (
                   <tr key={empId} className="hover:bg-gray-50/50">
                     <td className="sticky left-0 z-10 bg-white px-2 py-1 border-b border-r border-gray-200">
@@ -400,18 +408,29 @@ const StaffPlanner = () => {
                         </div>
                       </div>
                     </td>
-                    {Array.from({ length: daysInMonth }, (_, i) => {
-                      const day = i + 1;
-                      const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+                    {cols.map((col, ci) => {
+                      if (col.type === 'week') {
+                        const weekHours = getWeeklyHours(empId, weeks[col.weekIndex].days);
+                        const wColor = getHoursColor(weekHours, contract);
+                        return (
+                          <td key={`wk${col.weekIndex}`} className={`border-b border-r border-l-2 border-l-gray-400 border-gray-200 px-1 py-1 text-center ${wColor.bg}`}>
+                            <div className={`text-[11px] font-bold ${wColor.text}`} data-testid={`week-hours-${emp.employee_id}-${col.weekIndex}`}>
+                              {weekHours}h
+                            </div>
+                          </td>
+                        );
+                      }
+                      const dateStr = col.dateStr;
                       const shift = getShiftForCell(empId, dateStr);
                       const onLeave = isOnLeave(empId, dateStr);
                       const isToday = dateStr === todayStr;
-                      const isWeekend = [0, 6].includes(new Date(year, month - 1, day).getDay());
+                      const isWeekend = [0, 6].includes(new Date(year, month - 1, col.day).getDay());
+                      const isMonday = new Date(year, month - 1, col.day).getDay() === 1 && col.day > 1;
 
                       if (viewMode === 'off_duty') {
                         const isOff = !shift && !onLeave;
                         return (
-                          <td key={day} className={`border-b border-r border-gray-200 text-center ${isToday ? 'bg-blue-50' : isWeekend ? 'bg-gray-50/50' : ''}`}>
+                          <td key={col.day} className={`border-b border-r border-gray-200 text-center ${isMonday ? 'border-l-2 border-l-gray-300' : ''} ${isToday ? 'bg-blue-50' : isWeekend ? 'bg-gray-50/50' : ''}`}>
                             {isOff && <span className="text-gray-300 text-[10px]">OFF</span>}
                             {onLeave && <span className="text-green-600 text-[10px] font-medium">AL</span>}
                             {shift && <span className="text-gray-300 text-[10px]">-</span>}
@@ -421,17 +440,15 @@ const StaffPlanner = () => {
 
                       return (
                         <td
-                          key={day}
-                          className={`border-b border-r border-gray-200 p-0 ${isToday ? 'bg-blue-50' : isWeekend ? 'bg-gray-50/50' : ''}`}
+                          key={col.day}
+                          className={`border-b border-r border-gray-200 p-0 ${isMonday ? 'border-l-2 border-l-gray-300' : ''} ${isToday ? 'bg-blue-50' : isWeekend ? 'bg-gray-50/50' : ''}`}
                           onDragOver={handleDragOver}
                           onDrop={(e) => handleDrop(e, empId, dateStr)}
                           onClick={() => !shift && !onLeave && handleCellClick(empId, dateStr)}
                           style={{ cursor: !shift && !onLeave ? 'pointer' : 'default' }}
                         >
                           {onLeave && (
-                            <div className="mx-0.5 my-0.5 px-1 py-0.5 bg-green-100 border border-green-300 text-green-700 text-[10px] rounded text-center font-medium">
-                              AL
-                            </div>
+                            <div className="mx-0.5 my-0.5 px-1 py-0.5 bg-green-100 border border-green-300 text-green-700 text-[10px] rounded text-center font-medium">AL</div>
                           )}
                           {shift && !onLeave && (
                             <ShiftCell shift={shift} onRemove={removeShift} onDragStart={handleDragStart} empId={empId} />
@@ -439,14 +456,12 @@ const StaffPlanner = () => {
                         </td>
                       );
                     })}
-                    {showOvertimePanel && (
-                      <td className="border-b border-gray-200 px-2 py-1 text-center bg-orange-50/50">
-                        <div className="text-[11px] font-medium">{empStats.total_hours || 0}h</div>
-                        {(otData && otData.overtime_hours > 0) && (
-                          <div className="text-[10px] text-orange-600 font-medium">+{otData.overtime_hours}h OT</div>
-                        )}
-                      </td>
-                    )}
+                    {/* Monthly total */}
+                    <td className={`border-b border-l-2 border-l-gray-400 border-gray-200 px-1 py-1 text-center ${monthColor.bg}`}>
+                      <div className={`text-[11px] font-bold ${monthColor.text}`} data-testid={`month-hours-${emp.employee_id}`}>
+                        {monthlyHours}h
+                      </div>
+                    </td>
                   </tr>
                 );
               })}
