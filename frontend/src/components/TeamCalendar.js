@@ -144,58 +144,65 @@ const TeamCalendar = () => {
 
             {/* Calendar Days */}
             <div className="grid grid-cols-7 gap-1">
-              {calendarDays.map((dayData, index) => (
+              {calendarDays.map((dayData, index) => {
+                const dayNum = dayData.day;
+                const dateStr = dayData.dateStr;
+                const absences = dayData.absences;
+                const isToday = dateStr === today;
+                const absCount = absences.length;
+                return (
                 <div
                   key={index}
                   className={`min-h-[80px] p-1 rounded border ${
-                    dayData.day === null 
+                    dayNum === null 
                       ? 'bg-gray-50 border-transparent' 
-                      : dayData.dateStr === today
+                      : isToday
                         ? 'border-blue-500 bg-blue-50'
-                        : dayData.absences.length > 0
+                        : absCount > 0
                           ? 'border-orange-200 bg-orange-50'
                           : 'border-gray-200'
                   }`}
                 >
-                  {dayData.day !== null && (
+                  {dayNum !== null && (
                     <>
                       <div className="flex items-center justify-between mb-1">
                         <span className={`text-sm font-medium ${
-                          dayData.dateStr === today ? 'text-blue-600' : 'text-gray-700'
+                          isToday ? 'text-blue-600' : 'text-gray-700'
                         }`}>
-                          {dayData.day}
+                          {dayNum}
                         </span>
-                        {dayData.absences.length > 0 && (
+                        {absCount > 0 && (
                           <span className="text-xs bg-orange-200 text-orange-800 px-1 rounded">
-                            {dayData.absences.length}
+                            {absCount}
                           </span>
                         )}
                       </div>
 
-                      {/* Absences */}
                       <div className="space-y-0.5 overflow-y-auto max-h-[60px]">
-                        {dayData.absences.slice(0, 3).map((absence, idx) => {
+                        {absences.slice(0, 3).map((absence, idx) => {
                           const colors = getLeaveColor(absence.leave_type);
+                          const firstName = (absence.employee_name || '').split(' ')[0];
                           return (
                             <div
                               key={idx}
                               className={`text-xs px-1 py-0.5 ${colors.bg} ${colors.text} rounded truncate`}
                               title={`${absence.employee_name} - ${absence.leave_type}`}
                             >
-                              {absence.employee_name?.split(' ')[0]}
+                              {firstName}
                             </div>
                           );
                         })}
-                        {dayData.absences.length > 3 && (
+                        {absCount > 3 && (
                           <div className="text-xs text-gray-500 text-center">
-                            +{dayData.absences.length - 3} more
+                            +{absCount - 3} more
                           </div>
                         )}
                       </div>
                     </>
                   )}
                 </div>
-              ))}
+                );
+              })}
             </div>
           </>
         )}
