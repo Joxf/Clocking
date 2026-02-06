@@ -842,6 +842,7 @@ async def get_day_detail(date: str, current_user: dict = Depends(get_current_use
 
             members.append({
                 "shift_id": s["id"],
+                "internal_id": s["employee_id"],
                 "employee_id": emp.get("employee_id", ""),
                 "name": f"{emp.get('first_name','')} {emp.get('last_name','')}",
                 "job_title": emp.get("job_title", ""),
