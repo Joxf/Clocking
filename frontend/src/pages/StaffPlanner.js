@@ -57,13 +57,6 @@ const StaffPlanner = () => {
 
   useEffect(() => { fetchPlanner(); }, [fetchPlanner]);
 
-  const fetchOvertime = async () => {
-    try {
-      const res = await axios.get(`${API}/planner/overtime?year=${year}&month=${month}`, { headers });
-      setOvertimeData(res.data.overtime);
-    } catch (err) { console.error(err); }
-  };
-
   const prevMonth = () => {
     if (month === 1) { setMonth(12); setYear(y => y - 1); }
     else setMonth(m => m - 1);
