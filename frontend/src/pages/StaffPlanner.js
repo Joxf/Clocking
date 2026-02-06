@@ -270,13 +270,6 @@ const StaffPlanner = () => {
           </div>
           <div className="flex items-center gap-2">
             <button
-              onClick={() => { fetchOvertime(); setShowOvertimePanel(!showOvertimePanel); }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border ${showOvertimePanel ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-300 text-gray-600 hover:bg-gray-50'}`}
-              data-testid="overtime-toggle"
-            >
-              <BarChart3 size={14} /> Overtime
-            </button>
-            <button
               onClick={seedMonth}
               className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-gray-300 text-gray-600 hover:bg-gray-50"
               data-testid="seed-month-btn"
