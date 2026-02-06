@@ -294,9 +294,9 @@ def generate_totp_secret() -> str:
     return pyotp.random_base32(length=32)
 
 def verify_totp(secret: str, token: str) -> bool:
-    """Verify TOTP token with ±1 timestep tolerance"""
+    """Verify TOTP token with ±2 timestep tolerance (allows ~90s window)"""
     totp = pyotp.TOTP(secret)
-    return totp.verify(token, valid_window=1)
+    return totp.verify(token, valid_window=2)
 
 def create_jwt_token(employee: dict) -> str:
     """Create JWT token for authenticated session"""
