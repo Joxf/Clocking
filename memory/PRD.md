@@ -49,14 +49,11 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 - Drag-and-drop shift assignment between cells
 - Shift template palette (Early, Late, Night, Long Day) for one-click assignment
 - Agency/bank staff tagging with visual indicators (AGY badge, orange avatars, * on shifts)
-- Overtime tracking panel per staff member
-- Planner safeguards:
-  - Max 2 consecutive working days warning with confirmation popup
-  - 11-hour rest gap violation warning with confirmation popup
-  - Baseline coverage alerts (red/green/blue color bar)
-- On-duty / Off-duty view toggle
-- Role filter (Nurses, Carers, Agency, etc.)
-- Seed Month button for test data generation
+- **Weekly hours columns** (WK1-WK5) per staff, color-coded: red < 36h contract, green = 36h, amber > 36h overtime
+- **Monthly total column** with same color coding scheme
+- **Coverage detail rows** showing actual nurse + carer counts per shift (Early/Late/Night) per day, color-coded against baseline (2N + 6C)
+- Planner safeguards: max 2 consecutive days warning, 11hr rest gap warning, confirmation popups
+- On-duty / Off-duty view toggle, role filter, seed month for testing
 
 ## DB Collections
 - employees, shifts, leave_requests, shift_swap_requests, day_requests, messages, notifications, auth_events, care_homes, kiosk_devices
