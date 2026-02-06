@@ -376,21 +376,7 @@ async def validate_qr(request: QRValidateRequest):
         
         # Verify TOTP
         if not verify_totp(employee["totp_secret"], totp_token):
-            # Increment failed attempts
-            await db.employees.update_one(
-                {"id": employee["id"]},
-                {"$inc": {"failed_attempts": 1}, "$set": {"updated_at": datetime.now(timezone.utc).isoformat()}}
-            )
-            
-            # Check if should lockout (5 attempts)
-            if employee.get("failed_attempts", 0) >= 4:
-                lockout_time = datetime.now(timezone.utc) + timedelta(minutes=15)
-                await db.employees.update_one(
-                    {"id": employee["id"]},
-                    {"$set": {"lockout_until": lockout_time.isoformat()}}
-                )
-            
-            # Log failed attempt
+            # Log failed attempt (no lockout for TOTP - timing issues are common)
             await db.auth_events.insert_one(serialize_datetime({
                 "id": str(uuid.uuid4()),
                 "employee_id": employee["id"],
@@ -398,7 +384,7 @@ async def validate_qr(request: QRValidateRequest):
                 "timestamp": datetime.now(timezone.utc)
             }))
             
-            raise HTTPException(status_code=401, detail="Invalid TOTP token")
+            raise HTTPException(status_code=401, detail="QR code expired. Please scan a fresh code from your phone.")
         
         # Reset failed attempts on success
         await db.employees.update_one(
