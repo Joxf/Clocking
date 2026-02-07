@@ -98,15 +98,23 @@ const LeaveManagement = ({ token }) => {
           <tbody>
             {data.staff.map(s => {
               const isExpanded = expandedStaff === s.internal_id;
-              const balancePct = s.annual_entitlement > 0 ? (s.annual_remaining / s.annual_entitlement) * 100 : 0;
+              const entitlement = s.annual_entitlement || 28;
+              const remaining = s.annual_remaining;
+              const balancePct = entitlement > 0 ? (remaining / entitlement) * 100 : 0;
               const balanceColor = balancePct < 20 ? 'text-red-600' : balancePct < 50 ? 'text-amber-600' : 'text-green-600';
+              const initials = s.name.split(' ').map(n => n[0]).join('');
+              const pendingCount = s.pending_requests;
+              const sickDays = s.sick_days;
+              const sickEps = s.sick_episodes;
+              const rtwNeeded = s.rtw_needed;
+              const leaveReqs = s.leave_requests;
               return (
                 <React.Fragment key={s.internal_id}>
                   <tr className="border-t border-gray-100 hover:bg-gray-50">
                     <td className="px-3 py-2">
                       <div className="flex items-center gap-2">
                         <div className="w-6 h-6 rounded-full bg-slate-600 flex items-center justify-center text-[9px] font-bold text-white">
-                          {s.name.split(' ').map(n => n[0]).join('')}
+                          {initials}
                         </div>
                         <div>
                           <div className="font-medium text-gray-800">{s.name}</div>
@@ -114,17 +122,17 @@ const LeaveManagement = ({ token }) => {
                         </div>
                       </div>
                     </td>
-                    <td className="px-3 py-2 text-center font-medium">{s.annual_used} / {s.annual_entitlement}</td>
-                    <td className={`px-3 py-2 text-center font-bold ${balanceColor}`}>{s.annual_remaining}</td>
+                    <td className="px-3 py-2 text-center font-medium">{s.annual_used} / {entitlement}</td>
+                    <td className={`px-3 py-2 text-center font-bold ${balanceColor}`}>{remaining}</td>
                     <td className="px-3 py-2 text-center">
-                      {s.pending_requests > 0 ? (
-                        <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">{s.pending_requests}</span>
+                      {pendingCount > 0 ? (
+                        <span className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded-full font-medium">{pendingCount}</span>
                       ) : <span className="text-gray-300">0</span>}
                     </td>
-                    <td className="px-3 py-2 text-center">{s.sick_days > 0 ? <span className="text-red-600 font-medium">{s.sick_days}</span> : <span className="text-gray-300">0</span>}</td>
-                    <td className="px-3 py-2 text-center">{s.sick_episodes > 0 ? s.sick_episodes : <span className="text-gray-300">0</span>}</td>
+                    <td className="px-3 py-2 text-center">{sickDays > 0 ? <span className="text-red-600 font-medium">{sickDays}</span> : <span className="text-gray-300">0</span>}</td>
+                    <td className="px-3 py-2 text-center">{sickEps > 0 ? sickEps : <span className="text-gray-300">0</span>}</td>
                     <td className="px-3 py-2 text-center">
-                      {s.rtw_needed && <span className="px-1.5 py-0.5 bg-red-100 text-red-600 rounded-full text-[10px] font-medium">Needed</span>}
+                      {rtwNeeded && <span className="px-1.5 py-0.5 bg-red-100 text-red-600 rounded-full text-[10px] font-medium">Needed</span>}
                     </td>
                     <td className="px-3 py-2 text-center">
                       <div className="flex items-center justify-center gap-1">
@@ -132,7 +140,7 @@ const LeaveManagement = ({ token }) => {
                           className="p-1 hover:bg-gray-100 rounded" title="View requests">
                           {isExpanded ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
                         </button>
-                        {s.sick_episodes > 0 && (
+                        {sickEps > 0 && (
                           <button onClick={() => openSickness(s.internal_id)}
                             className="p-1 hover:bg-gray-100 rounded text-red-500" title="Sickness trends"
                             data-testid={`sickness-btn-${s.employee_id}`}>
@@ -145,7 +153,7 @@ const LeaveManagement = ({ token }) => {
                   {isExpanded && (
                     <tr>
                       <td colSpan={8} className="px-3 py-2 bg-gray-50">
-                        <LeaveRequestList requests={s.leave_requests} />
+                        <LeaveRequestList requests={leaveReqs} />
                       </td>
                     </tr>
                   )}
