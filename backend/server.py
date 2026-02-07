@@ -2804,6 +2804,211 @@ async def seed_planner_month(year: int, month: int, current_user: dict = Depends
 
     return {"success": True, "shifts_created": created}
 
+# ============ PHASE 5A: STAFF MANAGEMENT ============
+
+class CreateEmployeeRequest(BaseModel):
+    first_name: str
+    last_name: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    role: str = "staff"
+    job_title: str
+    employment_type: str = "permanent"
+    contract_hours: float = 36.0
+
+class UpdateEmployeeRequest(BaseModel):
+    first_name: Optional[str] = None
+    last_name: Optional[str] = None
+    email: Optional[str] = None
+    phone: Optional[str] = None
+    job_title: Optional[str] = None
+    employment_type: Optional[str] = None
+    contract_hours: Optional[float] = None
+
+def generate_employee_id(job_title, existing_ids):
+    """Generate a sequential employee ID like NRS003, CAR005"""
+    prefix_map = {
+        "nurse": "NRS", "senior_carer": "SCR", "carer": "CAR",
+        "activities": "ACT", "kitchen": "KIT", "maintenance": "MNT",
+        "care_manager": "MGR", "administrator": "ADM"
+    }
+    prefix = prefix_map.get(job_title, "EMP")
+    nums = [int(eid.replace(prefix, "")) for eid in existing_ids if eid.startswith(prefix) and eid.replace(prefix, "").isdigit()]
+    next_num = max(nums, default=0) + 1
+    return f"{prefix}{next_num:03d}"
+
+def generate_pin():
+    """Generate random 4-digit PIN"""
+    import random
+    return f"{random.randint(1000, 9999)}"
+
+@api_router.post("/employees/create")
+async def create_employee(req: CreateEmployeeRequest, current_user: dict = Depends(get_current_user)):
+    """Create a new employee with auto-generated ID, PIN, and TOTP secret"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+
+    care_home = await db.care_homes.find_one({}, {"_id": 0})
+    if not care_home:
+        raise HTTPException(status_code=404, detail="No care home configured")
+
+    existing_ids = [e["employee_id"] for e in await db.employees.find({}, {"_id": 0, "employee_id": 1}).to_list(500)]
+    employee_id = generate_employee_id(req.job_title, existing_ids)
+    pin = generate_pin()
+    totp_secret = generate_totp_secret()
+
+    emp = Employee(
+        employee_id=employee_id,
+        care_home_id=care_home["id"],
+        first_name=req.first_name,
+        last_name=req.last_name,
+        email=req.email,
+        phone=req.phone,
+        role=req.role,
+        job_title=req.job_title,
+        employment_type=req.employment_type,
+        contract_hours=req.contract_hours,
+        pin_hash=hash_pin(pin),
+        totp_secret=totp_secret,
+        totp_enrolled=True,
+        status="active"
+    )
+    await db.employees.insert_one(serialize_datetime(emp.model_dump()))
+
+    # Audit log
+    await db.staff_audit.insert_one({
+        "id": str(uuid.uuid4()),
+        "employee_id": emp.id,
+        "action": "created",
+        "performed_by": current_user["id"],
+        "performed_by_name": f"{current_user['first_name']} {current_user['last_name']}",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
+
+    return {
+        "success": True,
+        "employee_id": employee_id,
+        "pin": pin,
+        "name": f"{req.first_name} {req.last_name}",
+        "totp_secret": totp_secret
+    }
+
+@api_router.put("/employees/{emp_id}/update")
+async def update_employee(emp_id: str, req: UpdateEmployeeRequest, current_user: dict = Depends(get_current_user)):
+    """Update employee details"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+
+    update = {k: v for k, v in req.model_dump().items() if v is not None}
+    if not update:
+        raise HTTPException(status_code=400, detail="No fields to update")
+
+    update["updated_at"] = datetime.now(timezone.utc).isoformat()
+    result = await db.employees.update_one({"id": emp_id}, {"$set": update})
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    await db.staff_audit.insert_one({
+        "id": str(uuid.uuid4()), "employee_id": emp_id, "action": "updated",
+        "details": str(update), "performed_by": current_user["id"],
+        "performed_by_name": f"{current_user['first_name']} {current_user['last_name']}",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
+    return {"success": True}
+
+@api_router.put("/employees/{emp_id}/reset-pin")
+async def reset_pin(emp_id: str, current_user: dict = Depends(get_current_user)):
+    """Reset employee PIN — returns new PIN for manager to hand-copy"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+
+    new_pin = generate_pin()
+    result = await db.employees.update_one(
+        {"id": emp_id},
+        {"$set": {"pin_hash": hash_pin(new_pin), "failed_attempts": 0, "lockout_until": None, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    emp = await db.employees.find_one({"id": emp_id}, {"_id": 0, "first_name": 1, "last_name": 1, "employee_id": 1})
+
+    await db.staff_audit.insert_one({
+        "id": str(uuid.uuid4()), "employee_id": emp_id, "action": "pin_reset",
+        "performed_by": current_user["id"],
+        "performed_by_name": f"{current_user['first_name']} {current_user['last_name']}",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
+
+    return {
+        "success": True,
+        "new_pin": new_pin,
+        "employee_id": emp["employee_id"] if emp else "",
+        "name": f"{emp['first_name']} {emp['last_name']}" if emp else ""
+    }
+
+@api_router.put("/employees/{emp_id}/reset-totp")
+async def reset_totp(emp_id: str, current_user: dict = Depends(get_current_user)):
+    """Reset TOTP secret — requires re-enrollment on mobile app"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+
+    new_secret = generate_totp_secret()
+    result = await db.employees.update_one(
+        {"id": emp_id},
+        {"$set": {"totp_secret": new_secret, "totp_enrolled": True, "updated_at": datetime.now(timezone.utc).isoformat()}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Employee not found")
+
+    await db.staff_audit.insert_one({
+        "id": str(uuid.uuid4()), "employee_id": emp_id, "action": "totp_reset",
+        "performed_by": current_user["id"],
+        "performed_by_name": f"{current_user['first_name']} {current_user['last_name']}",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
+    return {"success": True, "message": "TOTP secret reset. Staff member must re-enroll on mobile app."}
+
+@api_router.put("/employees/{emp_id}/deactivate")
+async def deactivate_employee(emp_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+    result = await db.employees.update_one({"id": emp_id}, {"$set": {"status": "inactive", "updated_at": datetime.now(timezone.utc).isoformat()}})
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    await db.staff_audit.insert_one({
+        "id": str(uuid.uuid4()), "employee_id": emp_id, "action": "deactivated",
+        "performed_by": current_user["id"],
+        "performed_by_name": f"{current_user['first_name']} {current_user['last_name']}",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
+    return {"success": True}
+
+@api_router.put("/employees/{emp_id}/activate")
+async def activate_employee(emp_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+    result = await db.employees.update_one({"id": emp_id}, {"$set": {"status": "active", "updated_at": datetime.now(timezone.utc).isoformat()}})
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    await db.staff_audit.insert_one({
+        "id": str(uuid.uuid4()), "employee_id": emp_id, "action": "activated",
+        "performed_by": current_user["id"],
+        "performed_by_name": f"{current_user['first_name']} {current_user['last_name']}",
+        "timestamp": datetime.now(timezone.utc).isoformat()
+    })
+    return {"success": True}
+
+@api_router.get("/employees/list")
+async def list_employees(current_user: dict = Depends(get_current_user)):
+    """List all employees with full details for management"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+    employees = await db.employees.find(
+        {"care_home_id": current_user["care_home_id"]},
+        {"_id": 0, "pin_hash": 0, "totp_secret": 0}
+    ).to_list(500)
+    return {"employees": employees}
+
 # ============ PHASE 4C: LEAVE & AVAILABILITY ============
 
 @api_router.get("/leave/overview")
