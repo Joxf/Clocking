@@ -557,6 +557,16 @@ const ManagerDashboard = () => {
             </div>
           </>
         )}
+
+        {/* Leave & Sickness Tab */}
+        {activeTab === 'leave' && (
+          <LeaveManagement token={token} />
+        )}
+
+        {/* Operational Tab */}
+        {activeTab === 'operational' && (
+          <OperationalOverview token={token} />
+        )}
       </main>
 
       {showMessagesModal && <MessagesInbox onClose={() => setShowMessagesModal(false)} />}
