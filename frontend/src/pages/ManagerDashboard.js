@@ -5,6 +5,8 @@ import axios from 'axios';
 import NotificationBell from '../components/NotificationBell';
 import MessagesInbox from '../components/MessagesInbox';
 import AttendanceCalendar from '../components/AttendanceCalendar';
+import LeaveManagement from '../components/LeaveManagement';
+import OperationalOverview from '../components/OperationalOverview';
 import {
   LayoutDashboard,
   Users,
