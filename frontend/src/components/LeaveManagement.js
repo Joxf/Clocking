@@ -260,12 +260,13 @@ const SicknessModal = ({ data, onClose, onMarkRtw }) => {
                 </div>
               );
             })}
-            {data.episodes.length === 0 && <p className="text-xs text-gray-400">No sickness episodes recorded</p>}
+            {episodes.length === 0 && <p className="text-xs text-gray-400">No sickness episodes recorded</p>}
           </div>
         </div>
       </div>
     </div>
   </div>
-);
+  );
+};
 
 export default LeaveManagement;
