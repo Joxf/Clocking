@@ -62,11 +62,15 @@ const LeaveManagement = ({ token }) => {
             <Thermometer size={16} className="text-amber-600" />
             <span className="text-sm font-semibold text-amber-800">Return to Work Reminders ({rtwStaff.length})</span>
           </div>
-          {rtwStaff.map(s => (
-            <div key={s.internal_id} className="text-xs text-amber-700 py-0.5">
-              <span className="font-medium">{s.name}</span> — recent sick leave ended, RTW meeting needed
-            </div>
-          ))}
+          {rtwStaff.map(s => {
+            const sName = s.name;
+            const sId = s.internal_id;
+            return (
+              <div key={sId} className="text-xs text-amber-700 py-0.5">
+                <span className="font-medium">{sName}</span> — recent sick leave ended, RTW meeting needed
+              </div>
+            );
+          })}
         </div>
       )}
 
