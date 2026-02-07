@@ -60,6 +60,7 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 
 ## Key Files
 - `/app/backend/server.py` -- All backend endpoints
+- `/app/frontend/src/components/StaffManagement.js` -- Staff CRUD with modals
 - `/app/frontend/src/pages/StaffPlanner.js` -- Monthly planner grid
 - `/app/frontend/src/pages/StaffProfile.js` -- Staff hub with 6 tabs
 - `/app/frontend/src/pages/ManagerDashboard.js` -- Manager hub with sidebar nav
@@ -70,6 +71,17 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 - `/app/frontend/src/components/MessagesInbox.js` -- Internal messaging
 
 ## Backlog
+
+### P1 -- Phase 5B: Kiosk & Offline Support (Next)
+- Non-blocking "optimistic UI" for instant clock-in/out (to handle staff queues)
+- Auto-logout on idle
+- Device identity management
+- Offline TOTP/PIN validation with event queueing
+
+### P1 -- Phase 5C: Staff-facing Features (Next)
+- Unified request interface for leave, sick time, day off/on submissions
+
+### Earlier Backlog Items
 
 ### P0 -- Phase 4B: Attendance & Compliance (Complete - Feb 6, 2026)
 - Attendance monthly calendar view on Manager Dashboard (replaced basic list)
