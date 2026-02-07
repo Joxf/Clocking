@@ -529,19 +529,20 @@ const ManagerDashboard = () => {
             <div className="frappe-card">
               <div className="overflow-x-auto">
                 <table className="frappe-table">
-                  <thead><tr><th>Employee</th><th>Role</th><th>Type</th><th>Status</th></tr></thead>
+                  <thead><tr><th>Employee</th><th>Role</th><th>Type</th><th>Status</th><th>Notes</th></tr></thead>
                   <tbody>
                     {todayAttendance.map((record) => {
                       const emp = record.employee || {};
                       const initials = `${(emp.first_name || '')[0] || ''}${(emp.last_name || '')[0] || ''}`;
                       const isAgency = emp.employment_type === 'agency';
+                      const empName = `${emp.first_name || ''} ${emp.last_name || ''}`;
                       return (
                       <tr key={emp.id}>
                         <td>
                           <div className="flex items-center gap-3">
                             <div className="frappe-avatar">{initials}</div>
                             <div>
-                              <div className="font-medium text-gray-900">{emp.first_name} {emp.last_name}</div>
+                              <div className="font-medium text-gray-900">{empName}</div>
                               <div className="text-xs text-gray-500">{emp.employee_id}</div>
                             </div>
                           </div>
@@ -549,6 +550,12 @@ const ManagerDashboard = () => {
                         <td>{getJobTitleBadge(emp.job_title)}</td>
                         <td><span className={`frappe-badge ${isAgency ? 'frappe-badge-warning' : 'frappe-badge-gray'}`}>{isAgency ? 'Agency' : 'Permanent'}</span></td>
                         <td><span className="frappe-badge frappe-badge-success">Active</span></td>
+                        <td>
+                          <button onClick={() => setNotesTarget({ id: emp.id, name: empName })}
+                            className="text-xs px-2 py-1 border border-gray-200 rounded hover:bg-gray-50 text-gray-600" data-testid={`notes-btn-${emp.employee_id}`}>
+                            Notes
+                          </button>
+                        </td>
                       </tr>
                       );
                     })}
