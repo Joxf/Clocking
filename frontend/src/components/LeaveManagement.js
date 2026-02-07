@@ -101,7 +101,7 @@ const LeaveManagement = ({ token }) => {
             </tr>
           </thead>
           <tbody>
-            {data.staff.map(s => {
+            {staffList.map(s => {
               const isExpanded = expandedStaff === s.internal_id;
               const entitlement = s.annual_entitlement || 28;
               const remaining = s.annual_remaining;
