@@ -42,6 +42,7 @@ const ManagerDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [idleTime, setIdleTime] = useState(0);
   const [showMessagesModal, setShowMessagesModal] = useState(false);
+  const [notesTarget, setNotesTarget] = useState(null); // {id, name}
 
   const IDLE_TIMEOUT = 60;
 
