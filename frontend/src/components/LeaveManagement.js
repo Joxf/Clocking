@@ -174,17 +174,26 @@ const LeaveManagement = ({ token }) => {
 
 const LeaveRequestList = ({ requests }) => {
   if (!requests || requests.length === 0) return <p className="text-xs text-gray-400 py-2">No leave requests this year</p>;
-  const sorted = [...requests].sort((a, b) => b.start_date > a.start_date ? 1 : -1);
+  const sorted = [...requests].sort((a, b) => (b.start_date > a.start_date ? 1 : -1));
   return (
     <div className="space-y-1 max-h-40 overflow-y-auto">
-      {sorted.map(r => (
-        <div key={r.id} className="flex items-center gap-3 text-xs bg-white rounded px-2 py-1.5 border border-gray-100">
-          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${STATUS_COLORS[r.status]}`}>{r.status}</span>
-          <span className="font-medium text-gray-700 capitalize">{r.leave_type}</span>
-          <span className="text-gray-500">{r.start_date} → {r.end_date}</span>
-          {r.reason && <span className="text-gray-400 truncate max-w-[200px]">{r.reason}</span>}
-        </div>
-      ))}
+      {sorted.map(r => {
+        const reqId = r.id;
+        const reqStatus = r.status;
+        const reqType = r.leave_type;
+        const startD = r.start_date;
+        const endD = r.end_date;
+        const reason = r.reason;
+        const statusCls = STATUS_COLORS[reqStatus] || STATUS_COLORS.pending;
+        return (
+          <div key={reqId} className="flex items-center gap-3 text-xs bg-white rounded px-2 py-1.5 border border-gray-100">
+            <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${statusCls}`}>{reqStatus}</span>
+            <span className="font-medium text-gray-700 capitalize">{reqType}</span>
+            <span className="text-gray-500">{startD} → {endD}</span>
+            {reason && <span className="text-gray-400 truncate max-w-[200px]">{reason}</span>}
+          </div>
+        );
+      })}
     </div>
   );
 };
