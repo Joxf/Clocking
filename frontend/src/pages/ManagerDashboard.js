@@ -273,6 +273,12 @@ const ManagerDashboard = () => {
             <span className="ml-auto bg-orange-500 text-white text-xs rounded-full px-2 py-0.5">{swapApprovals.length}</span>
           )}
         </button>
+        <button onClick={() => setActiveTab('leave')} className={`frappe-sidebar-item w-full text-left ${activeTab === 'leave' ? 'active' : ''}`} data-testid="leave-nav">
+          <Calendar size={18} /><span>Leave & Sickness</span>
+        </button>
+        <button onClick={() => setActiveTab('operational')} className={`frappe-sidebar-item w-full text-left ${activeTab === 'operational' ? 'active' : ''}`} data-testid="operational-nav">
+          <AlertCircle size={18} /><span>Operational</span>
+        </button>
       </aside>
 
       {/* Main content */}
