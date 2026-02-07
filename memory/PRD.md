@@ -118,11 +118,19 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 - Deactivate/Activate: Toggle employee active status
 - Audit trail for staff changes
 
-### P2 -- Offline Support
+### P2 -- Phase 5B: Kiosk & Offline Support (Next)
+- Non-blocking "optimistic UI" for instant clock-in/out (to handle staff queues)
+- Auto-logout on idle
+- Device identity management
 - Local TOTP/PIN validation, event queueing for kiosk
 
-### P2 -- Kiosk Device Behavior
-- Auto-logout on idle, device identity management
+### P2 -- Phase 5C: Staff-facing Features (Next)
+- Unified request interface for leave, sick time, day off/on submissions
+
+### P2 -- Planner Validation Rules (Deferred)
+- Warning when scheduling more than 2 consecutive days
+- Warning when violating 11-hour rest gap between shifts
+- Agency/Bank staff tagging in planner
 
 ### P2 -- Sick Leave Recording
 - Staff sick leave and related absences
