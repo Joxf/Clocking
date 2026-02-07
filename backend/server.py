@@ -2959,7 +2959,7 @@ async def add_manager_note(employee_id: str, content: str, current_user: dict = 
         "created_at": datetime.now(timezone.utc).isoformat()
     }
     await db.manager_notes.insert_one(note)
-    del note["_id"] if "_id" in note else None
+    note.pop("_id", None)
     return {"success": True, "note": note}
 
 @api_router.delete("/manager/notes/{note_id}")
