@@ -2804,6 +2804,261 @@ async def seed_planner_month(year: int, month: int, current_user: dict = Depends
 
     return {"success": True, "shifts_created": created}
 
+# ============ PHASE 4C: LEAVE & AVAILABILITY ============
+
+@api_router.get("/leave/overview")
+async def get_leave_overview(year: int = None, current_user: dict = Depends(get_current_user)):
+    """Manager view: all staff leave balances, approved vs pending, sickness trends"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+
+    care_home_id = current_user["care_home_id"]
+    yr = year or datetime.now(timezone.utc).year
+
+    staff = await db.employees.find(
+        {"care_home_id": care_home_id, "status": {"$in": ["active", "on_leave"]}, "role": "staff"},
+        {"_id": 0, "id": 1, "employee_id": 1, "first_name": 1, "last_name": 1, "job_title": 1, "employment_type": 1}
+    ).to_list(200)
+
+    all_leave = await db.leave_requests.find(
+        {"care_home_id": care_home_id, "start_date": {"$gte": f"{yr}-01-01", "$lte": f"{yr}-12-31"}},
+        {"_id": 0}
+    ).to_list(5000)
+
+    ANNUAL_ENTITLEMENT = 28
+    staff_data = []
+    for emp in staff:
+        emp_leave = [l for l in all_leave if l["employee_id"] == emp["id"]]
+
+        # Count actual days used (approved annual)
+        annual_used = 0
+        for l in emp_leave:
+            if l["leave_type"] == "annual" and l["status"] == "approved":
+                d1 = datetime.fromisoformat(l["start_date"]).date()
+                d2 = datetime.fromisoformat(l["end_date"]).date()
+                annual_used += (d2 - d1).days + 1
+
+        # Pending requests
+        pending = [l for l in emp_leave if l["status"] == "pending"]
+
+        # Sick leave stats
+        sick_episodes = [l for l in emp_leave if l["leave_type"] == "sick"]
+        sick_approved = [l for l in sick_episodes if l["status"] == "approved"]
+        sick_days = 0
+        for l in sick_approved:
+            d1 = datetime.fromisoformat(l["start_date"]).date()
+            d2 = datetime.fromisoformat(l["end_date"]).date()
+            sick_days += (d2 - d1).days + 1
+
+        # Return-to-work flag: has a recent sick leave that ended within last 7 days
+        rtw_needed = False
+        today = datetime.now(timezone.utc).date()
+        for l in sick_approved:
+            end = datetime.fromisoformat(l["end_date"]).date()
+            if 0 <= (today - end).days <= 7:
+                rtw_needed = True
+                break
+
+        staff_data.append({
+            "employee_id": emp["employee_id"],
+            "internal_id": emp["id"],
+            "name": f"{emp['first_name']} {emp['last_name']}",
+            "job_title": emp["job_title"],
+            "employment_type": emp.get("employment_type", "permanent"),
+            "annual_entitlement": ANNUAL_ENTITLEMENT,
+            "annual_used": annual_used,
+            "annual_remaining": max(0, ANNUAL_ENTITLEMENT - annual_used),
+            "pending_requests": len(pending),
+            "sick_episodes": len(sick_approved),
+            "sick_days": sick_days,
+            "rtw_needed": rtw_needed,
+            "leave_requests": emp_leave
+        })
+
+    return {"year": yr, "staff": staff_data}
+
+@api_router.get("/leave/sickness-trends/{employee_id}")
+async def get_sickness_trends(employee_id: str, current_user: dict = Depends(get_current_user)):
+    """Get sickness frequency and pattern for a staff member"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+
+    sick_leave = await db.leave_requests.find(
+        {"employee_id": employee_id, "leave_type": "sick", "status": "approved"},
+        {"_id": 0}
+    ).sort("start_date", -1).to_list(100)
+
+    episodes = []
+    total_days = 0
+    monthly_counts = {}
+    for l in sick_leave:
+        d1 = datetime.fromisoformat(l["start_date"]).date()
+        d2 = datetime.fromisoformat(l["end_date"]).date()
+        days = (d2 - d1).days + 1
+        total_days += days
+        month_key = d1.strftime("%Y-%m")
+        monthly_counts[month_key] = monthly_counts.get(month_key, 0) + days
+        episodes.append({
+            "id": l["id"],
+            "start_date": l["start_date"],
+            "end_date": l["end_date"],
+            "days": days,
+            "reason": l.get("reason", ""),
+            "sick_note": l.get("sick_note_provided", False),
+            "rtw_completed": l.get("rtw_completed", False)
+        })
+
+    # Bradford factor: S^2 * D where S=episodes, D=total days
+    bradford = len(episodes) ** 2 * total_days if episodes else 0
+
+    return {
+        "employee_id": employee_id,
+        "total_episodes": len(episodes),
+        "total_days": total_days,
+        "bradford_factor": bradford,
+        "monthly_breakdown": monthly_counts,
+        "episodes": episodes
+    }
+
+@api_router.put("/leave/mark-rtw/{leave_id}")
+async def mark_return_to_work(leave_id: str, notes: str = "", current_user: dict = Depends(get_current_user)):
+    """Mark a sick leave episode as return-to-work completed"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+    result = await db.leave_requests.update_one(
+        {"id": leave_id},
+        {"$set": {"rtw_completed": True, "rtw_notes": notes, "rtw_by": current_user["id"], "rtw_date": datetime.now(timezone.utc).isoformat()}}
+    )
+    if result.modified_count == 0:
+        raise HTTPException(status_code=404, detail="Leave request not found")
+    return {"success": True}
+
+# ============ PHASE 4D: PERFORMANCE & OPERATIONAL ============
+
+@api_router.get("/manager/notes/{employee_id}")
+async def get_manager_notes(employee_id: str, current_user: dict = Depends(get_current_user)):
+    """Get private manager notes for a staff member"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+    notes = await db.manager_notes.find(
+        {"employee_id": employee_id}, {"_id": 0}
+    ).sort("created_at", -1).to_list(100)
+    return {"notes": notes}
+
+@api_router.post("/manager/notes/{employee_id}")
+async def add_manager_note(employee_id: str, content: str, current_user: dict = Depends(get_current_user)):
+    """Add a private manager note for a staff member"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+    note = {
+        "id": str(uuid.uuid4()),
+        "employee_id": employee_id,
+        "content": content,
+        "created_by": current_user["id"],
+        "created_by_name": f"{current_user['first_name']} {current_user['last_name']}",
+        "created_at": datetime.now(timezone.utc).isoformat()
+    }
+    await db.manager_notes.insert_one(note)
+    del note["_id"] if "_id" in note else None
+    return {"success": True, "note": note}
+
+@api_router.delete("/manager/notes/{note_id}")
+async def delete_manager_note(note_id: str, current_user: dict = Depends(get_current_user)):
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+    result = await db.manager_notes.delete_one({"id": note_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Note not found")
+    return {"success": True}
+
+@api_router.get("/operational/heatmap")
+async def get_staffing_heatmap(year: int, month: int, current_user: dict = Depends(get_current_user)):
+    """Staffing heatmap: total staff per day per shift for the month"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+
+    import calendar as cal_mod
+    days_in_month = cal_mod.monthrange(year, month)[1]
+    first = f"{year}-{month:02d}-01"
+    last = f"{year}-{month:02d}-{days_in_month:02d}"
+
+    care_home_id = current_user["care_home_id"]
+    shifts = await db.shifts.find({
+        "care_home_id": care_home_id,
+        "shift_date": {"$gte": first, "$lte": last},
+        "status": {"$in": ["scheduled", "completed"]}
+    }, {"_id": 0}).to_list(5000)
+
+    staff = await db.employees.find(
+        {"care_home_id": care_home_id, "status": "active", "role": "staff"},
+        {"_id": 0, "id": 1, "job_title": 1}
+    ).to_list(200)
+    job_map = {e["id"]: e["job_title"] for e in staff}
+
+    heatmap = {}
+    for day in range(1, days_in_month + 1):
+        ds = f"{year}-{month:02d}-{day:02d}"
+        day_shifts = [s for s in shifts if s["shift_date"] == ds]
+        day_data = {"total": len(day_shifts)}
+        for tpl_key in SHIFT_TEMPLATES:
+            tpl_s = [s for s in day_shifts if s.get("template") == tpl_key]
+            n = sum(1 for s in tpl_s if job_map.get(s["employee_id"]) == "nurse")
+            c = sum(1 for s in tpl_s if job_map.get(s["employee_id"]) in ("carer", "senior_carer"))
+            baseline_met = n >= COVERAGE_BASELINE["nurse"] and c >= COVERAGE_BASELINE["carer"]
+            day_data[tpl_key] = {"total": len(tpl_s), "nurses": n, "carers": c, "baseline_met": baseline_met}
+        heatmap[ds] = day_data
+
+    return {"year": year, "month": month, "heatmap": heatmap}
+
+@api_router.get("/operational/under-coverage")
+async def get_under_coverage_alerts(current_user: dict = Depends(get_current_user)):
+    """Get future dates with shifts below baseline coverage"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+
+    care_home_id = current_user["care_home_id"]
+    today = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    future_end = (datetime.now(timezone.utc) + timedelta(days=30)).strftime("%Y-%m-%d")
+
+    shifts = await db.shifts.find({
+        "care_home_id": care_home_id,
+        "shift_date": {"$gte": today, "$lte": future_end},
+        "status": "scheduled"
+    }, {"_id": 0}).to_list(5000)
+
+    staff = await db.employees.find(
+        {"care_home_id": care_home_id, "status": "active", "role": "staff"},
+        {"_id": 0, "id": 1, "job_title": 1}
+    ).to_list(200)
+    job_map = {e["id"]: e["job_title"] for e in staff}
+
+    alerts = []
+    dates_checked = set()
+    for s in shifts:
+        ds = s["shift_date"]
+        tpl = s.get("template", "")
+        key = f"{ds}_{tpl}"
+        if key in dates_checked:
+            continue
+        dates_checked.add(key)
+
+        tpl_shifts = [x for x in shifts if x["shift_date"] == ds and x.get("template") == tpl]
+        n = sum(1 for x in tpl_shifts if job_map.get(x["employee_id"]) == "nurse")
+        c = sum(1 for x in tpl_shifts if job_map.get(x["employee_id"]) in ("carer", "senior_carer"))
+        tpl_info = SHIFT_TEMPLATES.get(tpl, {})
+
+        if n < COVERAGE_BASELINE["nurse"] or c < COVERAGE_BASELINE["carer"]:
+            alerts.append({
+                "date": ds,
+                "shift": tpl_info.get("label", tpl),
+                "time": f"{tpl_info.get('start','')}-{tpl_info.get('end','')}",
+                "nurses": n, "nurses_needed": COVERAGE_BASELINE["nurse"],
+                "carers": c, "carers_needed": COVERAGE_BASELINE["carer"]
+            })
+
+    alerts.sort(key=lambda a: (a["date"], a["shift"]))
+    return {"alerts": alerts[:50]}
+
 @api_router.get("/")
 async def root():
     return {"message": "CareHome Clocking System API", "version": "1.0.0"}
