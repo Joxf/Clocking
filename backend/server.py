@@ -3021,17 +3021,6 @@ async def activate_employee(emp_id: str, current_user: dict = Depends(get_curren
     })
     return {"success": True}
 
-@api_router.get("/employees/list")
-async def list_employees(current_user: dict = Depends(get_current_user)):
-    """List all employees with full details for management"""
-    if current_user["role"] not in ("manager", "admin"):
-        raise HTTPException(status_code=403, detail="Manager access required")
-    employees = await db.employees.find(
-        {"care_home_id": current_user["care_home_id"]},
-        {"_id": 0, "pin_hash": 0, "totp_secret": 0}
-    ).to_list(500)
-    return {"employees": employees}
-
 # ============ PHASE 4C: LEAVE & AVAILABILITY ============
 
 @api_router.get("/leave/overview")
