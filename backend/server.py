@@ -995,7 +995,7 @@ async def get_wtd_alerts(year: int, month: int, current_user: dict = Depends(get
 # ============ EMPLOYEE ROUTES ============
 
 @api_router.get("/employees")
-async def list_employees(current_user: dict = Depends(get_current_user)):
+async def list_employees_basic(current_user: dict = Depends(get_current_user)):
     """List all employees (manager/admin only)"""
     if current_user["role"] not in ["manager", "admin"]:
         raise HTTPException(status_code=403, detail="Not authorized")
@@ -1006,6 +1006,29 @@ async def list_employees(current_user: dict = Depends(get_current_user)):
     ).to_list(1000)
     
     return {"employees": employees}
+
+@api_router.get("/employees/list")
+async def list_employees_full(current_user: dict = Depends(get_current_user)):
+    """List all employees with full details for management"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+    employees = await db.employees.find(
+        {"care_home_id": current_user["care_home_id"]},
+        {"_id": 0, "pin_hash": 0, "totp_secret": 0}
+    ).to_list(500)
+    return {"employees": employees}
+
+@api_router.get("/employees/lookup/{employee_code}")
+async def lookup_employee_code(employee_code: str):
+    """Public endpoint to lookup employee by code (for demo mode)"""
+    employee = await db.employees.find_one(
+        {"employee_id": employee_code, "status": "active"},
+        {"_id": 0, "pin_hash": 0, "totp_secret": 0}
+    )
+    if not employee:
+        raise HTTPException(status_code=404, detail="Employee not found")
+    
+    return employee
 
 @api_router.get("/employees/{employee_id}")
 async def get_employee(employee_id: str, current_user: dict = Depends(get_current_user)):
