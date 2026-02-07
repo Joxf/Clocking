@@ -225,24 +225,33 @@ const SicknessModal = ({ data, onClose, onMarkRtw }) => (
         <div>
           <h4 className="text-sm font-medium text-gray-700 mb-2">Episodes</h4>
           <div className="space-y-2">
-            {data.episodes.map(ep => (
-              <div key={ep.id} className="flex items-center gap-3 bg-gray-50 rounded-lg p-2.5 text-xs">
-                <div className="flex-1">
-                  <div className="font-medium text-gray-800">{ep.start_date} → {ep.end_date} ({ep.days} days)</div>
-                  {ep.reason && <div className="text-gray-500 mt-0.5">{ep.reason}</div>}
+            {data.episodes.map(ep => {
+              const epId = ep.id;
+              const epStart = ep.start_date;
+              const epEnd = ep.end_date;
+              const epDays = ep.days;
+              const epReason = ep.reason;
+              const hasSickNote = ep.sick_note;
+              const rtwDone = ep.rtw_completed;
+              return (
+                <div key={epId} className="flex items-center gap-3 bg-gray-50 rounded-lg p-2.5 text-xs">
+                  <div className="flex-1">
+                    <div className="font-medium text-gray-800">{epStart} → {epEnd} ({epDays} days)</div>
+                    {epReason && <div className="text-gray-500 mt-0.5">{epReason}</div>}
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    {hasSickNote && <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px]">Sick Note</span>}
+                    {rtwDone ? (
+                      <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px]">RTW Done</span>
+                    ) : (
+                      <button onClick={() => onMarkRtw(epId)} className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] hover:bg-amber-200" data-testid={`rtw-${epId}`}>
+                        Mark RTW
+                      </button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-1.5">
-                  {ep.sick_note && <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded text-[10px]">Sick Note</span>}
-                  {ep.rtw_completed ? (
-                    <span className="px-1.5 py-0.5 bg-green-100 text-green-700 rounded text-[10px]">RTW Done</span>
-                  ) : (
-                    <button onClick={() => onMarkRtw(ep.id)} className="px-1.5 py-0.5 bg-amber-100 text-amber-700 rounded text-[10px] hover:bg-amber-200" data-testid={`rtw-${ep.id}`}>
-                      Mark RTW
-                    </button>
-                  )}
-                </div>
-              </div>
-            ))}
+              );
+            })}
             {data.episodes.length === 0 && <p className="text-xs text-gray-400">No sickness episodes recorded</p>}
           </div>
         </div>
