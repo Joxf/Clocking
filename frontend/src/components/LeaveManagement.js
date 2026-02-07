@@ -51,7 +51,8 @@ const LeaveManagement = ({ token }) => {
   if (loading) return <div className="flex justify-center py-12"><div className="frappe-spinner" /></div>;
   if (!data) return null;
 
-  const rtwStaff = data.staff.filter(s => s.rtw_needed);
+  const staffList = data.staff || [];
+  const rtwStaff = staffList.filter(s => s.rtw_needed);
 
   return (
     <div data-testid="leave-management">
