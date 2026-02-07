@@ -203,7 +203,12 @@ const LeaveRequestList = ({ requests }) => {
   );
 };
 
-const SicknessModal = ({ data, onClose, onMarkRtw }) => (
+const SicknessModal = ({ data, onClose, onMarkRtw }) => {
+  const totalEps = data.total_episodes;
+  const totalDays = data.total_days;
+  const bradford = data.bradford_factor;
+  const episodes = data.episodes || [];
+  return (
   <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" data-testid="sickness-modal">
     <div className="bg-white rounded-xl shadow-xl max-w-lg w-full max-h-[80vh] overflow-hidden flex flex-col">
       <div className="flex items-center justify-between px-5 py-3 border-b">
@@ -211,26 +216,24 @@ const SicknessModal = ({ data, onClose, onMarkRtw }) => (
         <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X size={18} /></button>
       </div>
       <div className="overflow-y-auto px-5 py-4 space-y-4">
-        {/* Summary */}
         <div className="grid grid-cols-3 gap-3">
           <div className="bg-red-50 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-red-700">{data.total_episodes}</div>
+            <div className="text-2xl font-bold text-red-700">{totalEps}</div>
             <div className="text-xs text-red-500">Episodes</div>
           </div>
           <div className="bg-amber-50 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-amber-700">{data.total_days}</div>
+            <div className="text-2xl font-bold text-amber-700">{totalDays}</div>
             <div className="text-xs text-amber-500">Total Days</div>
           </div>
           <div className="bg-purple-50 rounded-lg p-3 text-center">
-            <div className="text-2xl font-bold text-purple-700">{data.bradford_factor}</div>
+            <div className="text-2xl font-bold text-purple-700">{bradford}</div>
             <div className="text-xs text-purple-500">Bradford Factor</div>
           </div>
         </div>
-        {/* Episodes */}
         <div>
           <h4 className="text-sm font-medium text-gray-700 mb-2">Episodes</h4>
           <div className="space-y-2">
-            {data.episodes.map(ep => {
+            {episodes.map(ep => {
               const epId = ep.id;
               const epStart = ep.start_date;
               const epEnd = ep.end_date;
