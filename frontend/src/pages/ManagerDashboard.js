@@ -7,6 +7,7 @@ import MessagesInbox from '../components/MessagesInbox';
 import AttendanceCalendar from '../components/AttendanceCalendar';
 import LeaveManagement from '../components/LeaveManagement';
 import OperationalOverview from '../components/OperationalOverview';
+import StaffManagement from '../components/StaffManagement';
 import {
   LayoutDashboard,
   Users,
