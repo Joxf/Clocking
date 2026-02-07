@@ -94,6 +94,18 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 - Under-coverage alerts: next 30 days showing shifts below baseline (2N + 6C)
 - Notes accessible from Staff List tab via per-employee Notes button
 
+### P1 -- Phase 5A: Staff Management Enhancements (Complete - Feb 7, 2026)
+- Staff Management table with Employee, ID, Role, Type, Contract, Status, Actions columns
+- Search functionality: filter by name or employee ID
+- Status filter: Active/Inactive/All employees
+- Add Employee: Create new employee with auto-generated employee_id (prefix based on job_title) and 4-digit PIN
+- PIN Result Dialog: Shows generated PIN to manager (Copy/Print/Done buttons)
+- Edit Employee: Update employee details (name, job title, employment type, contract hours)
+- Reset PIN: Generate new 4-digit PIN displayed in modal for manager to hand-copy
+- Reset TOTP: Reset TOTP secret requiring staff to re-enroll on mobile app
+- Deactivate/Activate: Toggle employee active status
+- Audit trail for staff changes
+
 ### P2 -- Offline Support
 - Local TOTP/PIN validation, event queueing for kiosk
 
