@@ -583,4 +583,71 @@ const ManagerDashboard = () => {
   );
 };
 
+const ManagerNotesModal = ({ target, token, onClose }) => {
+  const headers = { Authorization: `Bearer ${token}` };
+  const [notes, setNotes] = React.useState([]);
+  const [newNote, setNewNote] = React.useState('');
+
+  React.useEffect(() => {
+    axios.get(`${API}/manager/notes/${target.id}`, { headers }).then(r => setNotes(r.data.notes || [])).catch(() => {});
+  }, [target.id]);
+
+  const addNote = async () => {
+    if (!newNote.trim()) return;
+    const params = new URLSearchParams({ content: newNote });
+    await axios.post(`${API}/manager/notes/${target.id}?${params}`, {}, { headers });
+    setNewNote('');
+    const r = await axios.get(`${API}/manager/notes/${target.id}`, { headers });
+    setNotes(r.data.notes || []);
+  };
+
+  const deleteNote = async (noteId) => {
+    await axios.delete(`${API}/manager/notes/${noteId}`, { headers });
+    setNotes(prev => prev.filter(n => n.id !== noteId));
+  };
+
+  return (
+    <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" data-testid="notes-modal">
+      <div className="bg-white rounded-xl shadow-xl max-w-md w-full max-h-[80vh] overflow-hidden flex flex-col">
+        <div className="flex items-center justify-between px-5 py-3 border-b">
+          <h3 className="font-semibold text-gray-900">Notes — {target.name}</h3>
+          <button onClick={onClose} className="p-1 hover:bg-gray-100 rounded"><X size={18} /></button>
+        </div>
+        <div className="flex-1 overflow-y-auto px-5 py-3 space-y-2">
+          {notes.length === 0 && <p className="text-xs text-gray-400 py-4 text-center">No notes yet</p>}
+          {notes.map(n => {
+            const nId = n.id;
+            const nContent = n.content;
+            const nBy = n.created_by_name;
+            const nAt = n.created_at;
+            return (
+              <div key={nId} className="bg-gray-50 rounded-lg p-3 text-xs group">
+                <div className="flex items-start justify-between gap-2">
+                  <p className="text-gray-800 whitespace-pre-wrap">{nContent}</p>
+                  <button onClick={() => deleteNote(nId)} className="p-0.5 hover:bg-red-100 rounded text-gray-300 group-hover:text-red-500 flex-shrink-0">
+                    <X size={12} />
+                  </button>
+                </div>
+                <div className="text-[10px] text-gray-400 mt-1.5">
+                  {nBy} — {new Date(nAt).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="border-t px-5 py-3">
+          <div className="flex gap-2">
+            <textarea value={newNote} onChange={e => setNewNote(e.target.value)} placeholder="Add a private note..."
+              className="flex-1 border border-gray-200 rounded-lg px-3 py-2 text-xs resize-none h-16 focus:ring-1 focus:ring-blue-300 focus:outline-none" data-testid="note-input" />
+            <button onClick={addNote} disabled={!newNote.trim()}
+              className="px-3 bg-blue-500 text-white rounded-lg text-xs font-medium hover:bg-blue-600 disabled:opacity-50" data-testid="add-note-btn">
+              Add
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default ManagerDashboard;
