@@ -80,16 +80,19 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 - Working Time Directive alerts: >48h/week and <11h rest gap warnings
 - Audit trail endpoint for attendance changes
 
-### P1 -- Phase 4C: Leave & Availability Enhancements
-- Leave approval workflow improvements (approved vs pending visibility)
-- Automatic leave balance calculation
-- Sickness trends view/reporting per staff member
-- Return-to-work reminders linked to sickness episodes
+### P1 -- Phase 4C: Leave & Availability (Complete - Feb 7, 2026)
+- Leave overview for managers: all staff with annual used/remaining/entitlement (28 days)
+- Approved vs pending leave visibility with expandable request lists
+- Automatic leave balance calculation (entitlement minus approved days used)
+- Sickness trends per staff: episodes, total days, Bradford factor (S^2 x D)
+- Return-to-work reminders for recent sick leave episodes
+- Mark RTW completed from sickness trends modal
 
-### P1 -- Phase 4D: Performance & Operational Overview
-- Manager private notes per staff member (timestamped, audit logged)
-- Live staffing heatmap (week/month)
-- Future shift under-coverage alerts
+### P1 -- Phase 4D: Performance & Operational (Complete - Feb 7, 2026)
+- Manager private notes per staff (timestamped, created_by, delete, audit logged)
+- Staffing heatmap: monthly grid (E/L/N/LD x days) color-coded by coverage level
+- Under-coverage alerts: next 30 days showing shifts below baseline (2N + 6C)
+- Notes accessible from Staff List tab via per-employee Notes button
 
 ### P2 -- Offline Support
 - Local TOTP/PIN validation, event queueing for kiosk
