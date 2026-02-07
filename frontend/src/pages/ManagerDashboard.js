@@ -578,6 +578,7 @@ const ManagerDashboard = () => {
       </main>
 
       {showMessagesModal && <MessagesInbox onClose={() => setShowMessagesModal(false)} />}
+      {notesTarget && <ManagerNotesModal target={notesTarget} token={token} onClose={() => setNotesTarget(null)} />}
     </div>
   );
 };
