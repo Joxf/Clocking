@@ -464,6 +464,112 @@ const RequestCenter = () => {
     );
   };
 
+  // Sick Report Form
+  const SickReportForm = () => {
+    const today = new Date().toISOString().split('T')[0];
+    
+    return (
+      <div className="space-y-6">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-full bg-red-100 flex items-center justify-center text-red-500">
+            <Stethoscope size={20} />
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Report Sick Leave</h2>
+            <p className="text-sm text-gray-500">Record your sick leave - your manager will be notified</p>
+          </div>
+        </div>
+        
+        <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-xl text-sm text-yellow-700">
+          <strong>Note:</strong> Sick leave is recorded immediately. Please also follow your care home's call-in procedure.
+        </div>
+        
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
+              <input
+                type="date"
+                value={formData.start_date || today}
+                onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
+                max={today}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                data-testid="sick-start-date"
+                required
+              />
+            </div>
+            
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">Expected Return</label>
+              <input
+                type="date"
+                value={formData.end_date || ''}
+                onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
+                min={formData.start_date || today}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                data-testid="sick-end-date"
+                placeholder="Leave blank if unsure"
+              />
+            </div>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Symptoms / Reason</label>
+            <textarea
+              value={formData.symptoms || ''}
+              onChange={(e) => setFormData({ ...formData, symptoms: e.target.value })}
+              placeholder="Brief description (e.g., flu, stomach bug)..."
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+              rows={2}
+              data-testid="sick-symptoms"
+            />
+          </div>
+          
+          <div className="flex items-center gap-3">
+            <input
+              type="checkbox"
+              id="doctor_note"
+              checked={formData.doctor_note || false}
+              onChange={(e) => setFormData({ ...formData, doctor_note: e.target.checked })}
+              className="w-5 h-5 rounded border-gray-300 text-red-500 focus:ring-red-500"
+              data-testid="sick-doctor-note"
+            />
+            <label htmlFor="doctor_note" className="text-sm text-gray-700">
+              I will provide a doctor's note (required for 3+ consecutive days)
+            </label>
+          </div>
+          
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
+            <textarea
+              value={formData.notes || ''}
+              onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
+              placeholder="Any additional information for your manager..."
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-red-500 focus:border-transparent resize-none"
+              rows={2}
+              data-testid="sick-notes"
+            />
+          </div>
+        </div>
+        
+        {error && (
+          <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
+            <AlertCircle size={16} />
+            {error}
+          </div>
+        )}
+        
+        <button
+          onClick={() => setStep('confirm')}
+          className="w-full py-4 bg-red-500 text-white rounded-xl font-medium hover:bg-red-600 transition-colors"
+          data-testid="sick-continue-btn"
+        >
+          Continue
+        </button>
+      </div>
+    );
+  };
+
   // Shift Swap Form
   const ShiftSwapForm = () => {
     const upcomingShifts = myShifts.filter(s => new Date(s.shift_date) >= new Date());
