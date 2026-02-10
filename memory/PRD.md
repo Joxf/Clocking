@@ -118,11 +118,19 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 - Deactivate/Activate: Toggle employee active status
 - Audit trail for staff changes
 
-### P2 -- Phase 5B: Kiosk & Offline Support (Next)
-- Non-blocking "optimistic UI" for instant clock-in/out (to handle staff queues)
-- Auto-logout on idle
-- Device identity management
-- Local TOTP/PIN validation, event queueing for kiosk
+### P1 -- Phase 5B: Kiosk Clock Screen (Complete - Feb 10, 2026)
+- New KioskClockScreen component at /staff with optimistic UI for instant feedback
+- Clock-out success screen showing: success message, timestamp, next shift card with date label
+- "View Profile" and "Done" buttons on success screen
+- Auto-dismiss success screen after 8 seconds with countdown
+- Auto-logout on 60 seconds idle
+- Next shift API endpoint (/api/shifts/next) returns date_label ("Tomorrow", "Today", or formatted date)
+- Clock-out API now returns next_shift in response
+
+### P2 -- Phase 5B (Remaining): Offline Support
+- Local TOTP/PIN validation when offline
+- Event queueing for clock-in/out when offline
+- Device identity management for kiosk terminals
 
 ### P2 -- Phase 5C: Staff-facing Features (Next)
 - Unified request interface for leave, sick time, day off/on submissions
