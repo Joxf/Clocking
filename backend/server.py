@@ -1961,10 +1961,10 @@ async def approve_day_request(request_id: str, current_user: dict = Depends(get_
     
     await db.day_requests.update_one(
         {"id": request_id},
-        {"$set": {"status": "approved", "approved_by": current_user["id"]}}
+        {"$set": {"status": "approved", "approved_by": current_user["id"], "approved_at": datetime.now(timezone.utc).isoformat()}}
     )
     
-    # Notify employee
+    # Notify employee via notification bell
     req_type_display = "Day On" if day_req["request_type"] == "day_on" else "Day Off"
     notification = Notification(
         care_home_id=day_req["care_home_id"],
@@ -1976,10 +1976,26 @@ async def approve_day_request(request_id: str, current_user: dict = Depends(get_
     )
     await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
     
+    # Also send internal message
+    message = {
+        "id": str(uuid.uuid4()),
+        "care_home_id": day_req["care_home_id"],
+        "sender_id": current_user["id"],
+        "sender_name": f"{current_user['first_name']} {current_user['last_name']}",
+        "recipient_id": day_req["employee_id"],
+        "subject": f"{req_type_display} Request Approved",
+        "content": f"Good news! Your {req_type_display.lower()} request for {day_req['requested_date']} has been approved.\n\nApproved by: {current_user['first_name']} {current_user['last_name']}",
+        "message_type": "request_approval",
+        "related_id": request_id,
+        "read_by": [],
+        "created_at": datetime.now(timezone.utc)
+    }
+    await db.messages.insert_one(serialize_datetime(message))
+    
     return {"success": True}
 
 @api_router.put("/day-requests/{request_id}/reject")
-async def reject_day_request(request_id: str, current_user: dict = Depends(get_current_user)):
+async def reject_day_request(request_id: str, reason: str = None, current_user: dict = Depends(get_current_user)):
     """Reject day request (manager/admin only)"""
     if current_user["role"] not in ["manager", "admin"]:
         raise HTTPException(status_code=403, detail="Not authorized")
@@ -1990,10 +2006,10 @@ async def reject_day_request(request_id: str, current_user: dict = Depends(get_c
     
     await db.day_requests.update_one(
         {"id": request_id},
-        {"$set": {"status": "rejected", "approved_by": current_user["id"]}}
+        {"$set": {"status": "rejected", "approved_by": current_user["id"], "rejection_reason": reason, "approved_at": datetime.now(timezone.utc).isoformat()}}
     )
     
-    # Notify employee
+    # Notify employee via notification bell
     req_type_display = "Day On" if day_req["request_type"] == "day_on" else "Day Off"
     notification = Notification(
         care_home_id=day_req["care_home_id"],
@@ -2004,6 +2020,23 @@ async def reject_day_request(request_id: str, current_user: dict = Depends(get_c
         related_id=request_id
     )
     await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
+    
+    # Also send internal message
+    reason_text = f"\n\nReason: {reason}" if reason else ""
+    message = {
+        "id": str(uuid.uuid4()),
+        "care_home_id": day_req["care_home_id"],
+        "sender_id": current_user["id"],
+        "sender_name": f"{current_user['first_name']} {current_user['last_name']}",
+        "recipient_id": day_req["employee_id"],
+        "subject": f"{req_type_display} Request Rejected",
+        "content": f"Unfortunately, your {req_type_display.lower()} request for {day_req['requested_date']} has been rejected.{reason_text}\n\nPlease speak with your manager if you have any questions.",
+        "message_type": "request_rejection",
+        "related_id": request_id,
+        "read_by": [],
+        "created_at": datetime.now(timezone.utc)
+    }
+    await db.messages.insert_one(serialize_datetime(message))
     
     return {"success": True}
 
