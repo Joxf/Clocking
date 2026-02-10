@@ -200,7 +200,8 @@ const RequestCenter = () => {
   // Type Selection Screen
   const TypeSelection = () => {
     const types = [
-      { id: 'leave', label: 'Leave Request', desc: 'Annual, sick, or other leave', Icon: Calendar, color: 'blue' },
+      { id: 'leave', label: 'Leave Request', desc: 'Annual, compassionate, or other leave', Icon: Calendar, color: 'blue' },
+      { id: 'sick_report', label: 'Report Sick', desc: 'Record sick leave today', Icon: Stethoscope, color: 'red' },
       { id: 'day_off', label: 'Request Day Off', desc: 'Request a specific day off', Icon: CalendarMinus, color: 'orange' },
       { id: 'day_on', label: 'Pick Up Shift', desc: 'Request to work an extra day', Icon: CalendarPlus, color: 'green' },
       { id: 'shift_swap', label: 'Swap Shift', desc: 'Swap your shift with a colleague', Icon: RefreshCcw, color: 'purple' }
@@ -212,7 +213,6 @@ const RequestCenter = () => {
         
         <div className="grid gap-3">
           {types.map((t) => {
-            const colorHover = `hover:border-${t.color}-300 hover:bg-${t.color}-50`;
             const iconColor = `text-${t.color}-500`;
             
             return (
