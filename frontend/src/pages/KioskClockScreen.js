@@ -705,13 +705,21 @@ const KioskClockScreen = () => {
             </div>
           )}
 
-          {/* Quick Link to Profile */}
-          <div className="text-center">
+          {/* Quick Actions */}
+          <div className="flex gap-3 justify-center">
+            <button
+              onClick={goToRequests}
+              className="px-4 py-2 bg-blue-500 text-white rounded-lg text-sm font-medium hover:bg-blue-600 transition-colors flex items-center gap-2"
+              data-testid="new-request-btn"
+            >
+              <CalendarPlus size={16} />
+              New Request
+            </button>
             <button
               onClick={goToProfile}
-              className="text-blue-600 hover:text-blue-700 text-sm font-medium"
+              className="px-4 py-2 border border-gray-200 text-gray-700 rounded-lg text-sm font-medium hover:bg-gray-50 transition-colors"
             >
-              View leave requests, rota & shift swaps →
+              View My Profile
             </button>
           </div>
 
