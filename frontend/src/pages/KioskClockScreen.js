@@ -150,6 +150,18 @@ const KioskClockScreen = () => {
     return () => clearInterval(countdownInterval);
   }, [showClockOutSuccess, handleLogout]);
 
+  // Handle manual sync
+  const handleSync = async () => {
+    if (!isOnline || syncing) return;
+    setSyncing(true);
+    try {
+      await syncOfflineQueue();
+      await fetchData();
+    } finally {
+      setSyncing(false);
+    }
+  };
+
   const handleClockIn = async () => {
     if (actionInProgressRef.current) return;
     actionInProgressRef.current = true;
@@ -159,21 +171,30 @@ const KioskClockScreen = () => {
     setActionLoading(true);
     
     try {
-      await axios.post(`${API}/attendance/clock`, {
+      const response = await axios.post(`${API}/attendance/clock`, {
         employee_id: user.employee_id,
         action: 'clock_in'
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
+      // Check if this was queued offline
+      if (response.data?.offline || response.data?.queued) {
+        setOfflineClockAction({ type: 'clock_in', timestamp: new Date().toISOString() });
+      }
+      
       // Refresh data after successful clock-in
-      await fetchData();
+      if (isOnline) {
+        await fetchData();
+      }
       setOptimisticAction(null);
     } catch (err) {
       console.error('Clock in failed:', err);
       // Revert optimistic update
       setOptimisticAction(null);
-      await fetchData();
+      if (isOnline) {
+        await fetchData();
+      }
     } finally {
       setActionLoading(false);
       actionInProgressRef.current = false;
@@ -197,15 +218,17 @@ const KioskClockScreen = () => {
       });
       
       // Set clock-out success data
+      const timestamp = response.data?.timestamp || new Date().toISOString();
       setClockOutData({
-        timestamp: response.data.timestamp,
-        clockInTime: attendanceStatus?.clock_in_time
+        timestamp: timestamp,
+        clockInTime: attendanceStatus?.clock_in_time,
+        offline: response.data?.offline || response.data?.queued
       });
       
       // Get next shift info
-      if (response.data.next_shift) {
+      if (response.data?.next_shift) {
         setNextShift(response.data.next_shift);
-      } else {
+      } else if (isOnline) {
         // Fetch next shift separately if not in response
         try {
           const nextShiftRes = await axios.get(`${API}/shifts/next`, {
