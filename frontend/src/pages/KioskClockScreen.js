@@ -46,13 +46,33 @@ const KioskClockScreen = () => {
   const [optimisticAction, setOptimisticAction] = useState(null);
   const actionInProgressRef = useRef(false);
 
+  const fetchData = useCallback(async () => {
+    try {
+      const [attendanceRes, shiftRes] = await Promise.all([
+        axios.get(`${API}/attendance/status`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API}/shifts/today`, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      setAttendanceStatus(attendanceRes.data);
+      setShiftInfo(shiftRes.data);
+    } catch (err) {
+      console.error('Failed to fetch data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  const handleLogout = useCallback(async () => {
+    await logout();
+    navigate('/');
+  }, [logout, navigate]);
+
   useEffect(() => {
     if (!user || !token) {
       navigate('/');
       return;
     }
     fetchData();
-  }, [user, token, navigate]);
+  }, [user, token, navigate, fetchData]);
 
   // Update current time every second
   useEffect(() => {
@@ -90,7 +110,7 @@ const KioskClockScreen = () => {
       window.removeEventListener('touchstart', resetIdleTimer);
       clearInterval(idleInterval);
     };
-  }, [showClockOutSuccess]);
+  }, [showClockOutSuccess, handleLogout]);
 
   // Success screen countdown
   useEffect(() => {
@@ -107,17 +127,7 @@ const KioskClockScreen = () => {
     }, 1000);
     
     return () => clearInterval(countdownInterval);
-  }, [showClockOutSuccess]);
-
-  const fetchData = async () => {
-    try {
-      const [attendanceRes, shiftRes] = await Promise.all([
-        axios.get(`${API}/attendance/status`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API}/shifts/today`, { headers: { Authorization: `Bearer ${token}` } })
-      ]);
-      setAttendanceStatus(attendanceRes.data);
-      setShiftInfo(shiftRes.data);
-    } catch (err) {
+  }, [showClockOutSuccess, handleLogout]);
       console.error('Failed to fetch data:', err);
     } finally {
       setLoading(false);
