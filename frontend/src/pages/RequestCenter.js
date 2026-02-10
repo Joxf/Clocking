@@ -907,6 +907,7 @@ const RequestCenter = () => {
   // Render form based on selected type
   const renderForm = () => {
     if (selectedType === 'leave') return <LeaveForm />;
+    if (selectedType === 'sick_report') return <SickReportForm />;
     if (selectedType === 'day_off' || selectedType === 'day_on') return <DayRequestForm />;
     if (selectedType === 'shift_swap') return <ShiftSwapForm />;
     return null;
