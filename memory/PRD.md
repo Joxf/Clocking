@@ -143,20 +143,33 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 
 ### P2 -- Phase 5C: Staff-facing Features (Complete - Feb 10, 2026)
 - Request Center component at /staff/requests - unified interface for all staff requests
-- Four request types: Leave Request (7 subtypes), Request Day Off, Pick Up Shift, Swap Shift
+- Five request types: Leave Request (7 subtypes), **Report Sick**, Request Day Off, Pick Up Shift, Swap Shift
 - Multi-step wizard flow: Type Selection -> (Subtype) -> Form -> Confirm -> Submit -> Success
 - Leave types: Annual, Sick, Unpaid, Compassionate, Maternity, Paternity, Other
-- Leave balance display when selecting leave types
-- Recent Requests section showing last 5 submissions with status badges
-- Swap Shift supports Open Swap (anyone) or Direct Request (specific colleague)
+- **Sick Leave Recording**: Dedicated form with symptoms, doctor's note checkbox, expected return date
+- Sick leave auto-approved and managers notified immediately
+- GET /api/sick-leave/my-records shows total_sick_days_this_year
 - Access via: 'New Request' button on Kiosk Clock Screen, Staff Profile, or direct URL
-- Breadcrumb navigation showing progress through wizard
 - All data-testids implemented for testing
 
-### P2 -- Planner Validation Rules (Deferred)
-- Warning when scheduling more than 2 consecutive days
-- Warning when violating 11-hour rest gap between shifts
-- Agency/Bank staff tagging in planner
+### P1 -- Planner Validation Rules (Complete - Already Implemented)
+- MIN_REST_HOURS = 11 hours between shifts
+- MAX_CONSECUTIVE_DAYS = 2 days maximum
+- Validation warnings shown when scheduling violates rules
+- Rules exposed via GET /api/planner/templates endpoint
+
+### P1 -- Message Notifications (Complete - Feb 10, 2026)
+- Internal messages sent when requests are approved/rejected
+- Messages appear in Messages Inbox alongside notifications
+- Leave/Day request approval sends: notification bell + internal message
+- Leave/Day request rejection sends: notification bell + internal message with reason
+
+### P1 -- Agency/Bank Staff Tagging (Complete - Already Implemented)
+- employment_type field: "permanent", "agency", "bank"
+- Visual indicators in planner for agency/bank staff
+- is_agency_cover flag on shift assignments
+
+## Backlog Complete - All Features Implemented!
 
 ### P2 -- Sick Leave Recording
 - Staff sick leave and related absences
