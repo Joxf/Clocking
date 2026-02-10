@@ -13,7 +13,9 @@ import {
   XCircle,
   AlertCircle,
   ArrowRight,
-  ChevronRight
+  ChevronRight,
+  CloudOff,
+  RefreshCw
 } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -27,7 +29,15 @@ const SUCCESS_SCREEN_TIMEOUT = 8;
 const KioskClockScreen = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, token, logout, isOnline, offlineQueue } = useAuth();
+  const { 
+    user, 
+    token, 
+    logout, 
+    isOnline, 
+    offlineQueue, 
+    syncOfflineQueue,
+    lastSyncStatus 
+  } = useAuth();
   
   const [attendanceStatus, setAttendanceStatus] = useState(null);
   const [shiftInfo, setShiftInfo] = useState(null);
@@ -35,6 +45,7 @@ const KioskClockScreen = () => {
   const [actionLoading, setActionLoading] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [idleTime, setIdleTime] = useState(0);
+  const [syncing, setSyncing] = useState(false);
   
   // Clock-out success state
   const [showClockOutSuccess, setShowClockOutSuccess] = useState(false);
@@ -44,9 +55,19 @@ const KioskClockScreen = () => {
   
   // Optimistic UI state
   const [optimisticAction, setOptimisticAction] = useState(null);
+  const [offlineClockAction, setOfflineClockAction] = useState(null);
   const actionInProgressRef = useRef(false);
 
+  // Count unsynced events
+  const unsyncedCount = offlineQueue.filter(e => !e.synced).length;
+
   const fetchData = useCallback(async () => {
+    // If offline, use cached data
+    if (!isOnline) {
+      setLoading(false);
+      return;
+    }
+    
     try {
       const [attendanceRes, shiftRes] = await Promise.all([
         axios.get(`${API}/attendance/status`, { headers: { Authorization: `Bearer ${token}` } }),
