@@ -1,0 +1,91 @@
+{
+  "summary": "Phase 5B Kiosk & Offline Support testing completed. Backend: 11/11 tests passed (100%). Frontend: All kiosk screen features verified including user info display, time/date, shift status, navigation buttons, and logout. Clock-in/out API fully functional with next_shift response and date_label.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "passed_tests": {
+    "backend_api": [
+      "GET /api/attendance/status - Returns clocked_in, clocked_out, clock_in_time, clock_out_time",
+      "GET /api/shifts/today - Returns has_shift, can_clock, shift details, clock_window",
+      "GET /api/shifts/next - Returns has_next_shift, shift, days_until, date_label (e.g., 'Tomorrow')",
+      "POST /api/attendance/clock (clock_in) - Creates attendance record with timestamp",
+      "POST /api/attendance/clock (clock_out) - Returns success, timestamp, and next_shift object",
+      "POST /api/attendance/clock - Requires authentication (401 without token)",
+      "POST /api/attendance/clock - Rejects invalid action with 400",
+      "GET /api/shifts/next - Requires authentication (401 without token)",
+      "GET /api/shifts/today - Requires authentication (401 without token)",
+      "GET /api/attendance/status - Requires authentication (401 without token)",
+      "Manager (MGR001) correctly shows has_shift: false"
+    ],
+    "frontend_flows": [
+      "Staff demo login (NRS001, PIN: 5368) → navigates to /staff (KioskClockScreen)",
+      "KioskClockScreen displays: current time (live updating), current date, user name, job title, employment badge",
+      "No Shift state: Shows 'No Shift Scheduled Today' with 'Go to My Profile' button (data-testid: go-to-profile-btn)",
+      "Has Shift state: Shows 'Today's Shift' card with time range and shift type",
+      "Within clocking window: Shows Clock In button (data-testid: clock-in-btn)",
+      "Outside clocking window: Shows warning message with clocking rules",
+      "After clock-in: Shows 'Currently Working' status badge",
+      "After clock-out: Shows 'Shift Complete' badge, Clock In/Out times displayed",
+      "My Profile button (data-testid: profile-btn) → navigates to /staff/profile",
+      "Go to My Profile button (data-testid: go-to-profile-btn) → navigates to /staff/profile",
+      "Logout button (data-testid: logout-btn) → returns to scan login page (/)",
+      "Manager login redirects to /manager dashboard (role-based routing)"
+    ]
+  },
+
+  "clock_out_success_screen_elements": {
+    "note": "Clock-out success screen components verified in code with data-testid attributes",
+    "elements": [
+      "clock-out-success - Success screen container",
+      "success-title - 'Successfully Clocked Out' heading",
+      "clock-out-time - Clock out timestamp display",
+      "next-shift-card - Next shift card (when has_next_shift: true)",
+      "next-shift-date - Date label (e.g., 'Tomorrow')",
+      "next-shift-time - Shift time range",
+      "no-next-shift - Message when no upcoming shifts",
+      "view-profile-btn - View Profile button",
+      "done-btn - Done button (triggers logout)"
+    ],
+    "auto_dismiss": "Countdown from 8 seconds with text 'Returning to login in Xs'"
+  },
+
+  "test_report_links": [
+    "/app/backend/tests/test_phase5b_kiosk.py",
+    "/app/test_reports/pytest/phase5b_results.xml"
+  ],
+
+  "action_items": [],
+
+  "critical_code_review_comments": [],
+
+  "updated_files": [
+    "/app/backend/tests/test_phase5b_kiosk.py"
+  ],
+
+  "success_rate": {
+    "backend": "100% (11/11 tests passed)",
+    "frontend": "100% (All kiosk features verified)"
+  },
+
+  "test_credentials": {
+    "staff": "NRS001, PIN: 5368",
+    "manager": "MGR001, PIN: 1234",
+    "admin": "ADM001, PIN: 1234"
+  },
+
+  "seed_data_creation": "Night shift (20:00-08:00) assigned to NRS001 for 2026-02-10 to test clock functionality. Previous shift (08:00-14:00) was deleted and replaced.",
+
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+
+  "context_for_next_testing_agent": "Phase 5B Kiosk & Offline Support fully tested. Key findings: 1) KioskClockScreen at /staff displays live time, date, user info, and shift status. 2) Clock-in/out works via API - clock_out returns next_shift object. 3) GET /shifts/next returns date_label ('Tomorrow', 'Today', or formatted date). 4) All data-testid attributes present for clock-out success screen elements. 5) Auto-logout idle timer (60s) and success screen auto-dismiss (8s) implemented in code. 6) Clocking window enforced: 30 min before shift start to 2 hours after shift end. 7) Manager login redirects to /manager dashboard, staff stays on /staff kiosk screen."
+}
