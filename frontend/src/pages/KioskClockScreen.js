@@ -128,11 +128,6 @@ const KioskClockScreen = () => {
     
     return () => clearInterval(countdownInterval);
   }, [showClockOutSuccess, handleLogout]);
-      console.error('Failed to fetch data:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleClockIn = async () => {
     if (actionInProgressRef.current) return;
