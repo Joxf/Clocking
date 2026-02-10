@@ -480,7 +480,12 @@ const StaffProfile = () => {
 
           <NotificationBell />
 
-          <button onClick={goToClockScreen} className="frappe-btn frappe-btn-primary" data-testid="go-to-clock-btn">
+          <button onClick={() => navigate('/staff/requests')} className="frappe-btn frappe-btn-primary" data-testid="new-request-btn">
+            <Plus size={16} />
+            <span>New Request</span>
+          </button>
+
+          <button onClick={goToClockScreen} className="frappe-btn frappe-btn-secondary" data-testid="go-to-clock-btn">
             <Clock size={16} />
             <span>Clock In/Out</span>
           </button>
