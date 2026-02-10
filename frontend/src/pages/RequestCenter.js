@@ -152,6 +152,15 @@ const RequestCenter = () => {
           end_date: formData.end_date || formData.start_date,
           reason: formData.reason || ''
         };
+      } else if (selectedType === 'sick_report') {
+        endpoint = '/sick-leave/record';
+        payload = {
+          start_date: formData.start_date || new Date().toISOString().split('T')[0],
+          end_date: formData.end_date,
+          symptoms: formData.symptoms || '',
+          doctor_note: formData.doctor_note || false,
+          notes: formData.notes || ''
+        };
       } else if (selectedType === 'day_off' || selectedType === 'day_on') {
         endpoint = '/day-requests';
         payload = {
