@@ -444,20 +444,39 @@ const KioskClockScreen = () => {
         </div>
 
         <div className="flex items-center gap-4">
-          {/* Offline indicator */}
-          <div className={`offline-indicator ${isOnline ? 'online' : ''}`}>
+          {/* Offline indicator with sync button */}
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${isOnline ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
             {isOnline ? (
               <>
                 <Wifi size={14} />
                 <span>Online</span>
+                {unsyncedCount > 0 && (
+                  <button
+                    onClick={handleSync}
+                    disabled={syncing}
+                    className="ml-1 p-1 hover:bg-green-200 rounded"
+                    title="Sync pending events"
+                    data-testid="sync-btn"
+                  >
+                    <RefreshCw size={14} className={syncing ? 'animate-spin' : ''} />
+                  </button>
+                )}
               </>
             ) : (
               <>
                 <WifiOff size={14} />
-                <span>Offline ({offlineQueue.length})</span>
+                <span>Offline</span>
               </>
             )}
           </div>
+
+          {/* Unsynced events badge */}
+          {unsyncedCount > 0 && (
+            <div className="flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs" data-testid="unsynced-badge">
+              <CloudOff size={12} />
+              <span>{unsyncedCount} pending</span>
+            </div>
+          )}
 
           {/* Idle timer warning */}
           {idleTime > 30 && (
