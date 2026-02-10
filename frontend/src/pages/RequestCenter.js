@@ -696,6 +696,7 @@ const RequestCenter = () => {
   const Confirmation = () => {
     const typeLabels = {
       leave: 'Leave Request',
+      sick_report: 'Sick Leave Report',
       day_off: 'Request Day Off',
       day_on: 'Pick Up Shift',
       shift_swap: 'Swap Shift'
@@ -705,8 +706,8 @@ const RequestCenter = () => {
     return (
       <div className="space-y-6">
         <div className="text-center">
-          <div className="w-16 h-16 mx-auto rounded-full bg-blue-100 flex items-center justify-center mb-4 text-blue-500">
-            <CheckCircle size={32} />
+          <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4 ${selectedType === 'sick_report' ? 'bg-red-100 text-red-500' : 'bg-blue-100 text-blue-500'}`}>
+            {selectedType === 'sick_report' ? <Stethoscope size={32} /> : <CheckCircle size={32} />}
           </div>
           <h2 className="text-xl font-semibold text-gray-900">Confirm Your Request</h2>
           <p className="text-gray-500 mt-1">Please review the details below</p>
@@ -718,6 +719,32 @@ const RequestCenter = () => {
             <span className="font-medium text-gray-900">{label}</span>
           </div>
           
+          {selectedType === 'sick_report' && (
+            <>
+              <div className="flex justify-between">
+                <span className="text-gray-500">Start Date</span>
+                <span className="font-medium text-gray-900">{formatDate(formData.start_date)}</span>
+              </div>
+              {formData.end_date && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Expected Return</span>
+                  <span className="font-medium text-gray-900">{formatDate(formData.end_date)}</span>
+                </div>
+              )}
+              {formData.symptoms && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Symptoms</span>
+                  <span className="font-medium text-gray-900">{formData.symptoms}</span>
+                </div>
+              )}
+              {formData.doctor_note && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Doctor's Note</span>
+                  <span className="font-medium text-green-600">Will provide</span>
+                </div>
+              )}
+            </>
+          )}
           {selectedType === 'leave' && (
             <>
               <div className="flex justify-between">
