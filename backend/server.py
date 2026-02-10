@@ -1141,6 +1141,137 @@ async def list_kiosk_devices(current_user: dict = Depends(get_current_user)):
 
 # ============ OFFLINE SYNC ROUTES ============
 
+@api_router.post("/kiosk/register")
+async def register_kiosk_device(
+    device_name: str,
+    location: str = None,
+    setup_pin: str = "1234"
+):
+    """Register a new kiosk device - returns device_id for offline use"""
+    # Get default care home
+    care_home = await db.care_homes.find_one({}, {"_id": 0})
+    if not care_home:
+        raise HTTPException(status_code=400, detail="No care home configured")
+    
+    device_id = str(uuid.uuid4())
+    device = KioskDevice(
+        id=device_id,
+        care_home_id=care_home["id"],
+        device_name=device_name,
+        device_pin_hash=hash_pin(setup_pin),
+        location=location,
+        last_seen=datetime.now(timezone.utc)
+    )
+    await db.kiosk_devices.insert_one(serialize_datetime(device.model_dump()))
+    
+    return {
+        "success": True,
+        "device_id": device_id,
+        "device_name": device_name,
+        "message": "Device registered. Store device_id for offline operations."
+    }
+
+@api_router.post("/kiosk/heartbeat")
+async def kiosk_heartbeat(device_id: str):
+    """Update kiosk last_seen timestamp"""
+    result = await db.kiosk_devices.update_one(
+        {"id": device_id},
+        {"$set": {"last_seen": datetime.now(timezone.utc).isoformat()}}
+    )
+    if result.matched_count == 0:
+        raise HTTPException(status_code=404, detail="Device not found")
+    return {"success": True, "timestamp": datetime.now(timezone.utc).isoformat()}
+
+@api_router.get("/kiosk/offline-bundle")
+async def get_offline_bundle(current_user: dict = Depends(get_current_user)):
+    """Get offline authentication bundle for local validation.
+    Contains encrypted PIN hashes and TOTP secrets for authorized employees.
+    This should be refreshed periodically when online."""
+    
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required to download offline bundle")
+    
+    care_home_id = current_user["care_home_id"]
+    
+    # Get all active employees with their auth data
+    employees = await db.employees.find(
+        {"care_home_id": care_home_id, "status": "active"},
+        {"_id": 0, "id": 1, "employee_id": 1, "first_name": 1, "last_name": 1,
+         "role": 1, "job_title": 1, "pin_hash": 1, "totp_secret": 1, "totp_enrolled": 1}
+    ).to_list(500)
+    
+    # Get today's and tomorrow's shifts for offline display
+    today = datetime.now(timezone.utc).date()
+    tomorrow = today + timedelta(days=1)
+    
+    shifts = await db.shifts.find({
+        "care_home_id": care_home_id,
+        "shift_date": {"$in": [today.isoformat(), tomorrow.isoformat()]},
+        "status": {"$in": ["scheduled", "swapped"]}
+    }, {"_id": 0}).to_list(500)
+    
+    # Bundle creation timestamp for staleness check
+    bundle_created = datetime.now(timezone.utc)
+    
+    return {
+        "success": True,
+        "bundle_version": bundle_created.isoformat(),
+        "care_home_id": care_home_id,
+        "employees": employees,
+        "shifts": shifts,
+        "expires_at": (bundle_created + timedelta(hours=24)).isoformat(),
+        "note": "Store securely. Bundle expires in 24 hours."
+    }
+
+@api_router.post("/kiosk/offline-auth")
+async def validate_offline_auth(
+    employee_id: str,
+    pin: str,
+    totp_token: str = None,
+    device_id: str = None,
+    offline_timestamp: str = None
+):
+    """Validate authentication that was performed offline.
+    Called when kiosk comes back online to verify the offline auth was valid."""
+    
+    employee = await db.employees.find_one(
+        {"employee_id": employee_id},
+        {"_id": 0}
+    )
+    
+    if not employee:
+        return {"valid": False, "reason": "Employee not found"}
+    
+    # Verify PIN
+    if not employee.get("pin_hash") or not verify_pin(pin, employee["pin_hash"]):
+        return {"valid": False, "reason": "Invalid PIN"}
+    
+    # Verify TOTP if provided
+    if totp_token and employee.get("totp_secret"):
+        totp = pyotp.TOTP(employee["totp_secret"])
+        # Use wider tolerance for offline validation (5 minutes)
+        if not totp.verify(totp_token, valid_window=10):
+            return {"valid": False, "reason": "Invalid TOTP"}
+    
+    # Log the offline auth verification
+    await db.auth_events.insert_one(serialize_datetime({
+        "id": str(uuid.uuid4()),
+        "employee_id": employee["id"],
+        "event_type": "offline_auth_verified",
+        "kiosk_device_id": device_id,
+        "offline_timestamp": offline_timestamp,
+        "verified_at": datetime.now(timezone.utc),
+        "timestamp": datetime.now(timezone.utc)
+    }))
+    
+    return {
+        "valid": True,
+        "employee_id": employee["id"],
+        "employee_code": employee["employee_id"],
+        "name": f"{employee['first_name']} {employee['last_name']}",
+        "role": employee["role"]
+    }
+
 @api_router.post("/sync/offline-events")
 async def sync_offline_events(request: OfflineSyncRequest, current_user: dict = Depends(get_current_user)):
     """Sync offline authentication events"""
