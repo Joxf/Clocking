@@ -1744,6 +1744,128 @@ async def get_next_shift(current_user: dict = Depends(get_current_user)):
 
 # ============ LEAVE REQUEST ROUTES ============
 
+class SickLeaveRecord(BaseModel):
+    start_date: str
+    end_date: str = None
+    symptoms: str = None
+    doctor_note: bool = False
+    notes: str = None
+
+@api_router.post("/sick-leave/record")
+async def record_sick_leave(record: SickLeaveRecord, current_user: dict = Depends(get_current_user)):
+    """Record sick leave - staff can self-report when they're ill"""
+    end_date = record.end_date or record.start_date
+    
+    # Create the sick leave record
+    sick_leave = {
+        "id": str(uuid.uuid4()),
+        "care_home_id": current_user["care_home_id"],
+        "employee_id": current_user["id"],
+        "employee_name": f"{current_user['first_name']} {current_user['last_name']}",
+        "start_date": record.start_date,
+        "end_date": end_date,
+        "symptoms": record.symptoms,
+        "doctor_note": record.doctor_note,
+        "notes": record.notes,
+        "status": "recorded",  # recorded, return_to_work, closed
+        "return_date": None,
+        "return_to_work_meeting": None,
+        "created_at": datetime.now(timezone.utc)
+    }
+    
+    await db.sick_leave.insert_one(serialize_datetime(sick_leave))
+    
+    # Also create a leave request for tracking
+    leave_request = LeaveRequest(
+        care_home_id=current_user["care_home_id"],
+        employee_id=current_user["id"],
+        leave_type="sick",
+        start_date=record.start_date,
+        end_date=end_date,
+        reason=record.symptoms or "Sick leave",
+        status="approved"  # Sick leave is auto-approved
+    )
+    await db.leave_requests.insert_one(serialize_datetime(leave_request.model_dump()))
+    
+    # Notify managers
+    managers = await db.employees.find({
+        "care_home_id": current_user["care_home_id"],
+        "role": "manager",
+        "status": "active"
+    }, {"_id": 0, "id": 1, "first_name": 1, "last_name": 1}).to_list(10)
+    
+    for mgr in managers:
+        notification = Notification(
+            care_home_id=current_user["care_home_id"],
+            recipient_id=mgr["id"],
+            title="Sick Leave Reported",
+            content=f"{current_user['first_name']} {current_user['last_name']} has reported sick for {record.start_date}" + (f" to {end_date}" if end_date != record.start_date else ""),
+            notification_type="sick_leave",
+            related_id=sick_leave["id"]
+        )
+        await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
+    
+    return {"success": True, "id": sick_leave["id"]}
+
+@api_router.get("/sick-leave/my-records")
+async def get_my_sick_leave(current_user: dict = Depends(get_current_user)):
+    """Get own sick leave records"""
+    records = await db.sick_leave.find(
+        {"employee_id": current_user["id"]},
+        {"_id": 0}
+    ).sort("start_date", -1).to_list(50)
+    
+    # Calculate total sick days this year
+    current_year = datetime.now(timezone.utc).year
+    total_days = 0
+    for r in records:
+        if r["start_date"].startswith(str(current_year)):
+            start = datetime.strptime(r["start_date"], "%Y-%m-%d").date()
+            end = datetime.strptime(r["end_date"], "%Y-%m-%d").date()
+            total_days += (end - start).days + 1
+    
+    return {
+        "records": records,
+        "total_sick_days_this_year": total_days
+    }
+
+@api_router.get("/sick-leave/all")
+async def get_all_sick_leave(current_user: dict = Depends(get_current_user)):
+    """Get all sick leave records (manager only)"""
+    if current_user["role"] not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    records = await db.sick_leave.find(
+        {"care_home_id": current_user["care_home_id"]},
+        {"_id": 0}
+    ).sort("start_date", -1).to_list(200)
+    
+    return {"records": records}
+
+@api_router.put("/sick-leave/{record_id}/return-to-work")
+async def mark_return_to_work(record_id: str, return_date: str = None, notes: str = None, current_user: dict = Depends(get_current_user)):
+    """Mark employee as returned to work after sick leave"""
+    record = await db.sick_leave.find_one({"id": record_id}, {"_id": 0})
+    if not record:
+        raise HTTPException(status_code=404, detail="Sick leave record not found")
+    
+    # Staff can update own, managers can update any
+    if record["employee_id"] != current_user["id"] and current_user["role"] not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Not authorized")
+    
+    actual_return = return_date or datetime.now(timezone.utc).date().isoformat()
+    
+    await db.sick_leave.update_one(
+        {"id": record_id},
+        {"$set": {
+            "status": "return_to_work",
+            "return_date": actual_return,
+            "return_notes": notes
+        }}
+    )
+    
+    return {"success": True}
+
 @api_router.get("/leave-requests")
 async def get_leave_requests(current_user: dict = Depends(get_current_user)):
     """Get leave requests - own requests for staff, all for managers"""
