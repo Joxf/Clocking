@@ -72,6 +72,16 @@ function AppContent() {
           }
         />
         
+        {/* Request Center */}
+        <Route
+          path="/staff/requests"
+          element={
+            <ProtectedRoute allowedRoles={['staff', 'manager', 'admin']}>
+              <RequestCenter />
+            </ProtectedRoute>
+          }
+        />
+        
         {/* Manager Dashboard */}
         <Route
           path="/manager"
