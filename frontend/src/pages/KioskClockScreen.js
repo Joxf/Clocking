@@ -712,13 +712,46 @@ const KioskClockScreen = () => {
           </div>
 
           {/* Offline Queue Notice */}
-          {offlineQueue.length > 0 && (
-            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-yellow-700 text-sm">
-              <div className="flex items-center gap-2 mb-2">
-                <WifiOff size={16} />
-                <strong>Offline Events Pending</strong>
+          {unsyncedCount > 0 && (
+            <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg text-sm" data-testid="offline-queue-notice">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2 text-yellow-700">
+                  <CloudOff size={16} />
+                  <strong>Offline Events Pending</strong>
+                </div>
+                {isOnline && (
+                  <button
+                    onClick={handleSync}
+                    disabled={syncing}
+                    className="flex items-center gap-1 px-3 py-1 bg-yellow-200 hover:bg-yellow-300 rounded text-yellow-800 text-xs font-medium"
+                    data-testid="sync-queue-btn"
+                  >
+                    <RefreshCw size={12} className={syncing ? 'animate-spin' : ''} />
+                    {syncing ? 'Syncing...' : 'Sync Now'}
+                  </button>
+                )}
               </div>
-              <p>{offlineQueue.length} event(s) will sync when online.</p>
+              <p className="text-yellow-700">
+                {unsyncedCount} event(s) will sync {isOnline ? 'automatically or click Sync Now' : 'when back online'}.
+              </p>
+              {lastSyncStatus?.success && (
+                <p className="text-green-600 text-xs mt-1">
+                  Last sync: {lastSyncStatus.synced} events synced
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Offline Mode Notice */}
+          {!isOnline && (
+            <div className="mt-6 p-4 bg-orange-50 border border-orange-200 rounded-lg text-sm" data-testid="offline-mode-notice">
+              <div className="flex items-center gap-2 text-orange-700 mb-2">
+                <WifiOff size={16} />
+                <strong>Offline Mode</strong>
+              </div>
+              <p className="text-orange-600">
+                Clock-in/out events will be queued locally and synced when connection is restored.
+              </p>
             </div>
           )}
         </div>
