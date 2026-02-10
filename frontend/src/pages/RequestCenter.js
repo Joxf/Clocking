@@ -25,52 +25,35 @@ import {
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// Request type configurations
-const REQUEST_TYPES = {
-  leave: {
-    id: 'leave',
-    label: 'Leave Request',
-    description: 'Annual, sick, or other leave',
-    icon: Calendar,
-    color: 'blue',
-    subtypes: [
-      { value: 'annual', label: 'Annual Leave', icon: Calendar, description: 'Holiday time from your allowance' },
-      { value: 'sick', label: 'Sick Leave', icon: Stethoscope, description: 'Time off due to illness' },
-      { value: 'unpaid', label: 'Unpaid Leave', icon: Briefcase, description: 'Leave without pay' },
-      { value: 'compassionate', label: 'Compassionate', icon: Heart, description: 'Family emergency or bereavement' },
-      { value: 'maternity', label: 'Maternity', icon: Baby, description: 'Maternity leave' },
-      { value: 'paternity', label: 'Paternity', icon: Baby, description: 'Paternity leave' },
-      { value: 'other', label: 'Other', icon: HelpCircle, description: 'Other leave type' }
-    ]
-  },
-  day_off: {
-    id: 'day_off',
-    label: 'Request Day Off',
-    description: 'Request a specific day off',
-    icon: CalendarMinus,
-    color: 'orange'
-  },
-  day_on: {
-    id: 'day_on',
-    label: 'Pick Up Shift',
-    description: 'Request to work an extra day',
-    icon: CalendarPlus,
-    color: 'green'
-  },
-  shift_swap: {
-    id: 'shift_swap',
-    label: 'Swap Shift',
-    description: 'Swap your shift with a colleague',
-    icon: RefreshCcw,
-    color: 'purple'
-  }
+// Simple helper to get leave subtypes
+const getLeaveSubtypes = () => [
+  { value: 'annual', label: 'Annual Leave', description: 'Holiday time from your allowance' },
+  { value: 'sick', label: 'Sick Leave', description: 'Time off due to illness' },
+  { value: 'unpaid', label: 'Unpaid Leave', description: 'Leave without pay' },
+  { value: 'compassionate', label: 'Compassionate', description: 'Family emergency or bereavement' },
+  { value: 'maternity', label: 'Maternity', description: 'Maternity leave' },
+  { value: 'paternity', label: 'Paternity', description: 'Paternity leave' },
+  { value: 'other', label: 'Other', description: 'Other leave type' }
+];
+
+const getLeaveIcon = (value) => {
+  const icons = {
+    annual: Calendar,
+    sick: Stethoscope,
+    unpaid: Briefcase,
+    compassionate: Heart,
+    maternity: Baby,
+    paternity: Baby,
+    other: HelpCircle
+  };
+  return icons[value] || Calendar;
 };
 
 const RequestCenter = () => {
   const navigate = useNavigate();
   const { user, token } = useAuth();
   
-  const [step, setStep] = useState('select'); // select, form, confirm, success
+  const [step, setStep] = useState('select');
   const [selectedType, setSelectedType] = useState(null);
   const [selectedSubtype, setSelectedSubtype] = useState(null);
   const [formData, setFormData] = useState({});
@@ -93,24 +76,23 @@ const RequestCenter = () => {
   const fetchInitialData = async () => {
     setLoadingData(true);
     try {
+      const headers = { Authorization: `Bearer ${token}` };
       const [shiftsRes, colleaguesRes, profileRes, leaveRes, dayRes] = await Promise.all([
-        axios.get(`${API}/shifts/my-rota`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API}/staff/colleagues`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API}/staff/profile`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API}/leave-requests`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API}/day-requests`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API}/shifts/my-rota`, { headers }),
+        axios.get(`${API}/staff/colleagues`, { headers }),
+        axios.get(`${API}/staff/profile`, { headers }),
+        axios.get(`${API}/leave-requests`, { headers }),
+        axios.get(`${API}/day-requests`, { headers })
       ]);
       
       setMyShifts(shiftsRes.data.shifts || []);
       setColleagues(colleaguesRes.data.colleagues || []);
-      setLeaveBalance(profileRes.data.leave_balance);
+      const balance = profileRes.data.leave_balance;
+      setLeaveBalance(balance);
       
-      // Combine recent requests
-      const leaves = (leaveRes.data.leave_requests || []).map(r => ({ ...r, type: 'leave' }));
-      const days = (dayRes.data.day_requests || []).map(r => ({ ...r, type: r.request_type }));
-      const combined = [...leaves, ...days].sort((a, b) => 
-        new Date(b.created_at || b.requested_date) - new Date(a.created_at || a.requested_date)
-      ).slice(0, 5);
+      const leaves = (leaveRes.data.leave_requests || []).map(r => ({ ...r, reqType: 'leave' }));
+      const days = (dayRes.data.day_requests || []).map(r => ({ ...r, reqType: r.request_type }));
+      const combined = [...leaves, ...days].slice(0, 5);
       setRecentRequests(combined);
       
     } catch (err) {
@@ -160,6 +142,7 @@ const RequestCenter = () => {
     try {
       let endpoint = '';
       let payload = {};
+      const headers = { Authorization: `Bearer ${token}` };
       
       if (selectedType === 'leave') {
         endpoint = '/leave-requests';
@@ -186,14 +169,12 @@ const RequestCenter = () => {
         };
       }
       
-      await axios.post(`${API}${endpoint}`, payload, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
+      await axios.post(`${API}${endpoint}`, payload, { headers });
       setStep('success');
       
     } catch (err) {
-      setError(err.response?.data?.detail || 'Failed to submit request. Please try again.');
+      const detail = err.response?.data?.detail;
+      setError(detail || 'Failed to submit request. Please try again.');
     } finally {
       setSubmitting(false);
     }
@@ -210,146 +191,135 @@ const RequestCenter = () => {
   };
 
   const getStatusColor = (status) => {
-    const colors = {
-      pending: 'bg-yellow-100 text-yellow-700',
-      approved: 'bg-green-100 text-green-700',
-      rejected: 'bg-red-100 text-red-700',
-      cancelled: 'bg-gray-100 text-gray-500'
-    };
-    return colors[status] || 'bg-gray-100 text-gray-500';
+    if (status === 'pending') return 'bg-yellow-100 text-yellow-700';
+    if (status === 'approved') return 'bg-green-100 text-green-700';
+    if (status === 'rejected') return 'bg-red-100 text-red-700';
+    return 'bg-gray-100 text-gray-500';
   };
 
-  // Render: Type Selection
-  const renderTypeSelection = () => (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold text-gray-900 mb-6">What would you like to do?</h2>
-      
-      <div className="grid gap-3">
-        {Object.values(REQUEST_TYPES).map((type) => {
-          const IconComponent = type.icon;
-          const colorClasses = {
-            blue: 'hover:border-blue-300 hover:bg-blue-50',
-            orange: 'hover:border-orange-300 hover:bg-orange-50',
-            green: 'hover:border-green-300 hover:bg-green-50',
-            purple: 'hover:border-purple-300 hover:bg-purple-50'
-          };
-          const iconColors = {
-            blue: 'text-blue-500',
-            orange: 'text-orange-500',
-            green: 'text-green-500',
-            purple: 'text-purple-500'
-          };
-          
-          return (
-            <button
-              key={type.id}
-              onClick={() => handleSelectType(type.id)}
-              className={`flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-xl transition-all ${colorClasses[type.color]}`}
-              data-testid={`request-type-${type.id}`}
-            >
-              <div className={`w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center ${iconColors[type.color]}`}>
-                <IconComponent size={24} />
-              </div>
-              <div className="flex-1 text-left">
-                <h3 className="font-medium text-gray-900">{type.label}</h3>
-                <p className="text-sm text-gray-500">{type.description}</p>
-              </div>
-              <ChevronRight className="text-gray-400" size={20} />
-            </button>
-          );
-        })}
-      </div>
-      
-      {/* Recent Requests */}
-      {recentRequests.length > 0 && (
-        <div className="mt-8">
-          <h3 className="text-sm font-medium text-gray-500 mb-3">Recent Requests</h3>
-          <div className="space-y-2">
-            {recentRequests.map((req, idx) => (
-              <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm">
-                <div>
-                  <span className="font-medium text-gray-900">
-                    {req.leave_type || req.request_type || 'Request'}
-                  </span>
-                  <span className="text-gray-500 ml-2">
-                    {formatDate(req.start_date || req.requested_date)}
-                  </span>
+  // Type Selection Screen
+  const TypeSelection = () => {
+    const types = [
+      { id: 'leave', label: 'Leave Request', desc: 'Annual, sick, or other leave', Icon: Calendar, color: 'blue' },
+      { id: 'day_off', label: 'Request Day Off', desc: 'Request a specific day off', Icon: CalendarMinus, color: 'orange' },
+      { id: 'day_on', label: 'Pick Up Shift', desc: 'Request to work an extra day', Icon: CalendarPlus, color: 'green' },
+      { id: 'shift_swap', label: 'Swap Shift', desc: 'Swap your shift with a colleague', Icon: RefreshCcw, color: 'purple' }
+    ];
+
+    return (
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold text-gray-900 mb-6">What would you like to do?</h2>
+        
+        <div className="grid gap-3">
+          {types.map((t) => {
+            const colorHover = `hover:border-${t.color}-300 hover:bg-${t.color}-50`;
+            const iconColor = `text-${t.color}-500`;
+            
+            return (
+              <button
+                key={t.id}
+                onClick={() => handleSelectType(t.id)}
+                className={`flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-xl transition-all hover:border-blue-300 hover:bg-blue-50`}
+                data-testid={`request-type-${t.id}`}
+              >
+                <div className={`w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center ${iconColor}`}>
+                  <t.Icon size={24} />
                 </div>
-                <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusColor(req.status)}`}>
-                  {req.status}
-                </span>
-              </div>
-            ))}
-          </div>
+                <div className="flex-1 text-left">
+                  <h3 className="font-medium text-gray-900">{t.label}</h3>
+                  <p className="text-sm text-gray-500">{t.desc}</p>
+                </div>
+                <ChevronRight className="text-gray-400" size={20} />
+              </button>
+            );
+          })}
         </div>
-      )}
-    </div>
-  );
-
-  // Render: Leave Subtype Selection
-  const renderSubtypeSelection = () => (
-    <div className="space-y-4">
-      <h2 className="text-xl font-semibold text-gray-900 mb-2">Select Leave Type</h2>
-      
-      {leaveBalance && (
-        <div className="p-4 bg-blue-50 rounded-xl mb-6">
-          <div className="flex items-center justify-between">
-            <span className="text-blue-700 font-medium">Annual Leave Balance</span>
-            <span className="text-2xl font-bold text-blue-700">
-              {leaveBalance.remaining || 0} days
-            </span>
+        
+        {recentRequests.length > 0 && (
+          <div className="mt-8">
+            <h3 className="text-sm font-medium text-gray-500 mb-3">Recent Requests</h3>
+            <div className="space-y-2">
+              {recentRequests.map((req, idx) => {
+                const reqLabel = req.leave_type || req.request_type || 'Request';
+                const reqDate = req.start_date || req.requested_date;
+                return (
+                  <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg text-sm">
+                    <div>
+                      <span className="font-medium text-gray-900">{reqLabel}</span>
+                      <span className="text-gray-500 ml-2">{formatDate(reqDate)}</span>
+                    </div>
+                    <span className={`px-2 py-0.5 rounded-full text-xs ${getStatusColor(req.status)}`}>
+                      {req.status}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-          <p className="text-blue-600 text-sm mt-1">
-            {leaveBalance.used || 0} used of {leaveBalance.total || 0} days
-          </p>
-        </div>
-      )}
-      
-      <div className="grid gap-3">
-        {REQUEST_TYPES.leave.subtypes.map((subtype) => {
-          const IconComponent = subtype.icon;
-          return (
-            <button
-              key={subtype.value}
-              onClick={() => handleSelectSubtype(subtype.value)}
-              className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-all"
-              data-testid={`leave-type-${subtype.value}`}
-            >
-              <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-500">
-                <IconComponent size={20} />
-              </div>
-              <div className="flex-1 text-left">
-                <h3 className="font-medium text-gray-900">{subtype.label}</h3>
-                <p className="text-sm text-gray-500">{subtype.description}</p>
-              </div>
-              <ChevronRight className="text-gray-400" size={20} />
-            </button>
-          );
-        })}
+        )}
       </div>
-    </div>
-  );
-
-  // Render: Form based on request type
-  const renderForm = () => {
-    if (selectedType === 'leave') {
-      return renderLeaveForm();
-    } else if (selectedType === 'day_off' || selectedType === 'day_on') {
-      return renderDayRequestForm();
-    } else if (selectedType === 'shift_swap') {
-      return renderShiftSwapForm();
-    }
-    return null;
+    );
   };
 
-  const renderLeaveForm = () => {
-    const subtype = REQUEST_TYPES.leave.subtypes.find(s => s.value === selectedSubtype);
+  // Leave Subtype Selection
+  const SubtypeSelection = () => {
+    const subtypes = getLeaveSubtypes();
+    
+    return (
+      <div className="space-y-4">
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Select Leave Type</h2>
+        
+        {leaveBalance && (
+          <div className="p-4 bg-blue-50 rounded-xl mb-6">
+            <div className="flex items-center justify-between">
+              <span className="text-blue-700 font-medium">Annual Leave Balance</span>
+              <span className="text-2xl font-bold text-blue-700">
+                {leaveBalance.remaining || 0} days
+              </span>
+            </div>
+            <p className="text-blue-600 text-sm mt-1">
+              {leaveBalance.used || 0} used of {leaveBalance.total || 0} days
+            </p>
+          </div>
+        )}
+        
+        <div className="grid gap-3">
+          {subtypes.map((subtype) => {
+            const IconComp = getLeaveIcon(subtype.value);
+            return (
+              <button
+                key={subtype.value}
+                onClick={() => handleSelectSubtype(subtype.value)}
+                className="flex items-center gap-4 p-4 bg-white border border-gray-200 rounded-xl hover:border-blue-300 hover:bg-blue-50 transition-all"
+                data-testid={`leave-type-${subtype.value}`}
+              >
+                <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-500">
+                  <IconComp size={20} />
+                </div>
+                <div className="flex-1 text-left">
+                  <h3 className="font-medium text-gray-900">{subtype.label}</h3>
+                  <p className="text-sm text-gray-500">{subtype.description}</p>
+                </div>
+                <ChevronRight className="text-gray-400" size={20} />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  // Leave Form
+  const LeaveForm = () => {
+    const subtypes = getLeaveSubtypes();
+    const subtype = subtypes.find(s => s.value === selectedSubtype);
+    const IconComp = getLeaveIcon(selectedSubtype);
     
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-500">
-            {subtype && <subtype.icon size={20} />}
+            <IconComp size={20} />
           </div>
           <div>
             <h2 className="text-xl font-semibold text-gray-900">{subtype?.label || 'Leave'} Request</h2>
@@ -385,13 +355,11 @@ const RequestCenter = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Reason {selectedSubtype === 'sick' ? '' : '(optional)'}
-            </label>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Reason (optional)</label>
             <textarea
               value={formData.reason || ''}
               onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
-              placeholder={selectedSubtype === 'sick' ? 'Brief description of illness...' : 'Any additional details...'}
+              placeholder="Any additional details..."
               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
               rows={3}
               data-testid="leave-reason"
@@ -418,20 +386,24 @@ const RequestCenter = () => {
     );
   };
 
-  const renderDayRequestForm = () => {
+  // Day Request Form
+  const DayRequestForm = () => {
     const isPickUp = selectedType === 'day_on';
-    const config = REQUEST_TYPES[selectedType];
-    const IconComponent = config.icon;
+    const Icon = isPickUp ? CalendarPlus : CalendarMinus;
+    const label = isPickUp ? 'Pick Up Shift' : 'Request Day Off';
+    const desc = isPickUp ? 'Request to work an extra day' : 'Request a specific day off';
+    const bgColor = isPickUp ? 'bg-green-100 text-green-500' : 'bg-orange-100 text-orange-500';
+    const btnColor = isPickUp ? 'bg-green-500 hover:bg-green-600' : 'bg-orange-500 hover:bg-orange-600';
     
     return (
       <div className="space-y-6">
         <div className="flex items-center gap-3">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${isPickUp ? 'bg-green-100 text-green-500' : 'bg-orange-100 text-orange-500'}`}>
-            <IconComponent size={20} />
+          <div className={`w-10 h-10 rounded-full flex items-center justify-center ${bgColor}`}>
+            <Icon size={20} />
           </div>
           <div>
-            <h2 className="text-xl font-semibold text-gray-900">{config.label}</h2>
-            <p className="text-sm text-gray-500">{config.description}</p>
+            <h2 className="text-xl font-semibold text-gray-900">{label}</h2>
+            <p className="text-sm text-gray-500">{desc}</p>
           </div>
         </div>
         
@@ -474,9 +446,7 @@ const RequestCenter = () => {
         <button
           onClick={() => setStep('confirm')}
           disabled={!formData.requested_date}
-          className={`w-full py-4 text-white rounded-xl font-medium transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed ${
-            isPickUp ? 'bg-green-500 hover:bg-green-600' : 'bg-orange-500 hover:bg-orange-600'
-          }`}
+          className={`w-full py-4 text-white rounded-xl font-medium transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed ${btnColor}`}
           data-testid="day-request-continue-btn"
         >
           Continue
@@ -485,7 +455,8 @@ const RequestCenter = () => {
     );
   };
 
-  const renderShiftSwapForm = () => {
+  // Shift Swap Form
+  const ShiftSwapForm = () => {
     const upcomingShifts = myShifts.filter(s => new Date(s.shift_date) >= new Date());
     
     return (
@@ -513,7 +484,7 @@ const RequestCenter = () => {
               <option value="">Choose a shift...</option>
               {upcomingShifts.map((shift) => (
                 <option key={shift.id} value={shift.id}>
-                  {formatDate(shift.shift_date)} - {shift.start_time} to {shift.end_time} ({shift.shift_type})
+                  {formatDate(shift.shift_date)} - {shift.start_time} to {shift.end_time}
                 </option>
               ))}
             </select>
@@ -567,7 +538,7 @@ const RequestCenter = () => {
                 <option value="">Choose a colleague...</option>
                 {colleagues.map((c) => (
                   <option key={c.id} value={c.id}>
-                    {c.first_name} {c.last_name} ({c.job_title})
+                    {c.first_name} {c.last_name}
                   </option>
                 ))}
               </select>
@@ -606,21 +577,21 @@ const RequestCenter = () => {
     );
   };
 
-  // Render: Confirmation
-  const renderConfirmation = () => {
-    const config = REQUEST_TYPES[selectedType];
-    const IconComponent = config.icon;
+  // Confirmation Screen
+  const Confirmation = () => {
+    const typeLabels = {
+      leave: 'Leave Request',
+      day_off: 'Request Day Off',
+      day_on: 'Pick Up Shift',
+      shift_swap: 'Swap Shift'
+    };
+    const label = typeLabels[selectedType];
     
     return (
       <div className="space-y-6">
         <div className="text-center">
-          <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center mb-4 ${
-            selectedType === 'leave' ? 'bg-blue-100 text-blue-500' :
-            selectedType === 'day_on' ? 'bg-green-100 text-green-500' :
-            selectedType === 'day_off' ? 'bg-orange-100 text-orange-500' :
-            'bg-purple-100 text-purple-500'
-          }`}>
-            <IconComponent size={32} />
+          <div className="w-16 h-16 mx-auto rounded-full bg-blue-100 flex items-center justify-center mb-4 text-blue-500">
+            <CheckCircle size={32} />
           </div>
           <h2 className="text-xl font-semibold text-gray-900">Confirm Your Request</h2>
           <p className="text-gray-500 mt-1">Please review the details below</p>
@@ -629,7 +600,7 @@ const RequestCenter = () => {
         <div className="bg-gray-50 rounded-xl p-4 space-y-3">
           <div className="flex justify-between">
             <span className="text-gray-500">Request Type</span>
-            <span className="font-medium text-gray-900">{config.label}</span>
+            <span className="font-medium text-gray-900">{label}</span>
           </div>
           
           {selectedType === 'leave' && (
@@ -655,18 +626,10 @@ const RequestCenter = () => {
           )}
           
           {selectedType === 'shift_swap' && (
-            <>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Swap Type</span>
-                <span className="font-medium text-gray-900 capitalize">{formData.swap_type || 'Open'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">Shift</span>
-                <span className="font-medium text-gray-900">
-                  {myShifts.find(s => s.id === formData.shift_id)?.shift_date || 'Selected'}
-                </span>
-              </div>
-            </>
+            <div className="flex justify-between">
+              <span className="text-gray-500">Swap Type</span>
+              <span className="font-medium text-gray-900 capitalize">{formData.swap_type || 'Open'}</span>
+            </div>
           )}
           
           {formData.reason && (
@@ -695,12 +658,7 @@ const RequestCenter = () => {
           <button
             onClick={handleSubmit}
             disabled={submitting}
-            className={`flex-1 py-4 text-white rounded-xl font-medium transition-colors flex items-center justify-center gap-2 ${
-              selectedType === 'leave' ? 'bg-blue-500 hover:bg-blue-600' :
-              selectedType === 'day_on' ? 'bg-green-500 hover:bg-green-600' :
-              selectedType === 'day_off' ? 'bg-orange-500 hover:bg-orange-600' :
-              'bg-purple-500 hover:bg-purple-600'
-            }`}
+            className="flex-1 py-4 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 transition-colors flex items-center justify-center gap-2"
             data-testid="submit-request-btn"
           >
             {submitting ? (
@@ -720,9 +678,14 @@ const RequestCenter = () => {
     );
   };
 
-  // Render: Success
-  const renderSuccess = () => {
-    const config = REQUEST_TYPES[selectedType];
+  // Success Screen
+  const Success = () => {
+    const typeLabels = {
+      leave: 'leave request',
+      day_off: 'day off request',
+      day_on: 'shift pick up request',
+      shift_swap: 'shift swap request'
+    };
     
     return (
       <div className="text-center space-y-6 py-8">
@@ -733,7 +696,7 @@ const RequestCenter = () => {
         <div>
           <h2 className="text-2xl font-semibold text-gray-900 mb-2">Request Submitted!</h2>
           <p className="text-gray-500">
-            Your {config.label.toLowerCase()} has been submitted and is pending approval.
+            Your {typeLabels[selectedType]} has been submitted and is pending approval.
           </p>
         </div>
         
@@ -743,7 +706,7 @@ const RequestCenter = () => {
             <span className="text-sm">What happens next?</span>
           </div>
           <p className="text-sm text-gray-600 mt-2">
-            Your manager will review your request and you'll receive a notification when it's approved or if more information is needed.
+            Your manager will review your request and you'll receive a notification when it's approved.
           </p>
         </div>
         
@@ -784,9 +747,16 @@ const RequestCenter = () => {
     );
   }
 
+  // Render form based on selected type
+  const renderForm = () => {
+    if (selectedType === 'leave') return <LeaveForm />;
+    if (selectedType === 'day_off' || selectedType === 'day_on') return <DayRequestForm />;
+    if (selectedType === 'shift_swap') return <ShiftSwapForm />;
+    return null;
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
-      {/* Header */}
       <header className="bg-white border-b border-gray-200 px-4 py-3">
         <div className="max-w-lg mx-auto flex items-center gap-4">
           <button
@@ -810,11 +780,10 @@ const RequestCenter = () => {
         </div>
       </header>
       
-      {/* Progress indicator */}
       {step !== 'select' && step !== 'success' && (
         <div className="bg-white border-b border-gray-100 px-4 py-2">
           <div className="max-w-lg mx-auto flex items-center gap-2 text-sm">
-            <span className={step === 'subtype' || step === 'form' || step === 'confirm' ? 'text-blue-500 font-medium' : 'text-gray-400'}>Type</span>
+            <span className="text-blue-500 font-medium">Type</span>
             <ChevronRight size={14} className="text-gray-300" />
             {selectedType === 'leave' && (
               <>
@@ -829,13 +798,12 @@ const RequestCenter = () => {
         </div>
       )}
       
-      {/* Main Content */}
       <main className="max-w-lg mx-auto p-4" data-testid="request-center">
-        {step === 'select' && renderTypeSelection()}
-        {step === 'subtype' && renderSubtypeSelection()}
+        {step === 'select' && <TypeSelection />}
+        {step === 'subtype' && <SubtypeSelection />}
         {step === 'form' && renderForm()}
-        {step === 'confirm' && renderConfirmation()}
-        {step === 'success' && renderSuccess()}
+        {step === 'confirm' && <Confirmation />}
+        {step === 'success' && <Success />}
       </main>
     </div>
   );
