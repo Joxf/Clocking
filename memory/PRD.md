@@ -140,8 +140,17 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 - Manual sync button when there are pending events
 - Visual indicators: Online/Offline status, unsynced count badge, offline mode notice
 
-### P2 -- Phase 5C: Staff-facing Features (Next)
-- Unified request interface for leave, sick time, day off/on submissions
+### P2 -- Phase 5C: Staff-facing Features (Complete - Feb 10, 2026)
+- Request Center component at /staff/requests - unified interface for all staff requests
+- Four request types: Leave Request (7 subtypes), Request Day Off, Pick Up Shift, Swap Shift
+- Multi-step wizard flow: Type Selection -> (Subtype) -> Form -> Confirm -> Submit -> Success
+- Leave types: Annual, Sick, Unpaid, Compassionate, Maternity, Paternity, Other
+- Leave balance display when selecting leave types
+- Recent Requests section showing last 5 submissions with status badges
+- Swap Shift supports Open Swap (anyone) or Direct Request (specific colleague)
+- Access via: 'New Request' button on Kiosk Clock Screen, Staff Profile, or direct URL
+- Breadcrumb navigation showing progress through wizard
+- All data-testids implemented for testing
 
 ### P2 -- Planner Validation Rules (Deferred)
 - Warning when scheduling more than 2 consecutive days
