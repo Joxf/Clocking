@@ -216,11 +216,6 @@ const KioskClockScreen = () => {
     }
   };
 
-  const handleLogout = useCallback(async () => {
-    await logout();
-    navigate('/');
-  }, [logout, navigate]);
-
   const goToProfile = () => {
     navigate('/staff/profile');
   };
