@@ -9,6 +9,7 @@ import {
   Wifi,
   User,
   Calendar,
+  CalendarPlus,
   CheckCircle,
   XCircle,
   AlertCircle,
