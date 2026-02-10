@@ -1803,10 +1803,10 @@ async def approve_leave_request(request_id: str, current_user: dict = Depends(ge
     
     await db.leave_requests.update_one(
         {"id": request_id},
-        {"$set": {"status": "approved", "approved_by": current_user["id"]}}
+        {"$set": {"status": "approved", "approved_by": current_user["id"], "approved_at": datetime.now(timezone.utc).isoformat()}}
     )
     
-    # Notify employee
+    # Notify employee via notification bell
     notification = Notification(
         care_home_id=leave_req["care_home_id"],
         recipient_id=leave_req["employee_id"],
@@ -1816,6 +1816,22 @@ async def approve_leave_request(request_id: str, current_user: dict = Depends(ge
         related_id=request_id
     )
     await db.notifications.insert_one(serialize_datetime(notification.model_dump()))
+    
+    # Also send internal message
+    message = {
+        "id": str(uuid.uuid4()),
+        "care_home_id": leave_req["care_home_id"],
+        "sender_id": current_user["id"],
+        "sender_name": f"{current_user['first_name']} {current_user['last_name']}",
+        "recipient_id": leave_req["employee_id"],
+        "subject": "Leave Request Approved",
+        "content": f"Good news! Your {leave_req['leave_type']} leave request for {leave_req['start_date']} to {leave_req['end_date']} has been approved.\n\nApproved by: {current_user['first_name']} {current_user['last_name']}",
+        "message_type": "request_approval",
+        "related_id": request_id,
+        "read_by": [],
+        "created_at": datetime.now(timezone.utc)
+    }
+    await db.messages.insert_one(serialize_datetime(message))
     
     return {"success": True}
 
