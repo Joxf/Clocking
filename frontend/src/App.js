@@ -8,7 +8,7 @@ import { Toaster } from "sonner";
 // Pages
 import ScanLogin from "./pages/ScanLogin";
 import PinEntry from "./pages/PinEntry";
-import StaffDashboard from "./pages/StaffDashboard";
+import KioskClockScreen from "./pages/KioskClockScreen";
 import StaffProfile from "./pages/StaffProfile";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
