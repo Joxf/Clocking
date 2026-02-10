@@ -1577,6 +1577,40 @@ async def get_today_shift(current_user: dict = Depends(get_current_user)):
         "message": "Within clocking window" if can_clock else "Outside clocking window"
     }
 
+@api_router.get("/shifts/next")
+async def get_next_shift(current_user: dict = Depends(get_current_user)):
+    """Get the next scheduled shift for the current user"""
+    today = datetime.now(timezone.utc).date().isoformat()
+    
+    next_shift = await db.shifts.find_one({
+        "employee_id": current_user["id"],
+        "shift_date": {"$gt": today},
+        "status": {"$in": ["scheduled", "swapped"]}
+    }, {"_id": 0}, sort=[("shift_date", 1)])
+    
+    if not next_shift:
+        return {"has_next_shift": False, "shift": None}
+    
+    # Calculate days until shift
+    shift_date = datetime.strptime(next_shift["shift_date"], "%Y-%m-%d").date()
+    today_date = datetime.now(timezone.utc).date()
+    days_until = (shift_date - today_date).days
+    
+    # Friendly label
+    if days_until == 1:
+        date_label = "Tomorrow"
+    elif days_until == 0:
+        date_label = "Today"
+    else:
+        date_label = shift_date.strftime("%A, %d %b")
+    
+    return {
+        "has_next_shift": True,
+        "shift": next_shift,
+        "days_until": days_until,
+        "date_label": date_label
+    }
+
 # ============ LEAVE REQUEST ROUTES ============
 
 @api_router.get("/leave-requests")
