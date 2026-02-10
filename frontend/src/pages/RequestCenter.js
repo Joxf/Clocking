@@ -824,21 +824,33 @@ const RequestCenter = () => {
   const Success = () => {
     const typeLabels = {
       leave: 'leave request',
+      sick_report: 'sick leave',
       day_off: 'day off request',
       day_on: 'shift pick up request',
       shift_swap: 'shift swap request'
     };
     
+    const isSickReport = selectedType === 'sick_report';
+    
     return (
       <div className="text-center space-y-6 py-8">
-        <div className="w-20 h-20 mx-auto rounded-full bg-green-100 flex items-center justify-center">
-          <CheckCircle size={48} className="text-green-500" />
+        <div className={`w-20 h-20 mx-auto rounded-full flex items-center justify-center ${isSickReport ? 'bg-red-100' : 'bg-green-100'}`}>
+          {isSickReport ? (
+            <Stethoscope size={48} className="text-red-500" />
+          ) : (
+            <CheckCircle size={48} className="text-green-500" />
+          )}
         </div>
         
         <div>
-          <h2 className="text-2xl font-semibold text-gray-900 mb-2">Request Submitted!</h2>
+          <h2 className="text-2xl font-semibold text-gray-900 mb-2">
+            {isSickReport ? 'Sick Leave Recorded!' : 'Request Submitted!'}
+          </h2>
           <p className="text-gray-500">
-            Your {typeLabels[selectedType]} has been submitted and is pending approval.
+            {isSickReport 
+              ? 'Your sick leave has been recorded and your manager has been notified.'
+              : `Your ${typeLabels[selectedType]} has been submitted and is pending approval.`
+            }
           </p>
         </div>
         
@@ -848,7 +860,10 @@ const RequestCenter = () => {
             <span className="text-sm">What happens next?</span>
           </div>
           <p className="text-sm text-gray-600 mt-2">
-            Your manager will review your request and you'll receive a notification when it's approved.
+            {isSickReport 
+              ? 'Focus on getting better. Remember to provide a doctor\'s note if you\'re off for 3+ days. You\'ll receive a message when you return.'
+              : 'Your manager will review your request and you\'ll receive a notification when it\'s approved.'
+            }
           </p>
         </div>
         
