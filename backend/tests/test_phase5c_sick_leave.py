@@ -367,21 +367,24 @@ class TestPlannerValidationRules:
         token = TestAuthentication.get_manager_token()
         return {"Authorization": f"Bearer {token}"}
     
-    def test_01_get_planner_config(self, manager_headers):
-        """Test that planner config returns validation rules"""
-        response = requests.get(f"{BASE_URL}/api/planner/config", headers=manager_headers)
+    def test_01_get_planner_templates_with_rules(self, manager_headers):
+        """Test that planner templates endpoint returns validation rules"""
+        response = requests.get(f"{BASE_URL}/api/planner/templates", headers=manager_headers)
         
-        assert response.status_code == 200, f"Failed to get planner config: {response.text}"
+        assert response.status_code == 200, f"Failed to get planner templates: {response.text}"
         data = response.json()
         
-        # Check validation rules are present
-        assert "min_rest_hours" in data, "min_rest_hours not in config"
-        assert "max_consecutive_days" in data, "max_consecutive_days not in config"
+        # Check validation rules are present in the 'rules' key
+        assert "rules" in data, "rules not in response"
+        rules = data["rules"]
         
-        assert data["min_rest_hours"] == 11, f"Expected MIN_REST_HOURS=11, got {data['min_rest_hours']}"
-        assert data["max_consecutive_days"] == 2, f"Expected MAX_CONSECUTIVE_DAYS=2, got {data['max_consecutive_days']}"
+        assert "min_rest_hours" in rules, "min_rest_hours not in rules"
+        assert "max_consecutive_days" in rules, "max_consecutive_days not in rules"
         
-        print(f"✓ Planner validation rules: min_rest_hours={data['min_rest_hours']}, max_consecutive_days={data['max_consecutive_days']}")
+        assert rules["min_rest_hours"] == 11, f"Expected MIN_REST_HOURS=11, got {rules['min_rest_hours']}"
+        assert rules["max_consecutive_days"] == 2, f"Expected MAX_CONSECUTIVE_DAYS=2, got {rules['max_consecutive_days']}"
+        
+        print(f"✓ Planner validation rules: min_rest_hours={rules['min_rest_hours']}, max_consecutive_days={rules['max_consecutive_days']}")
     
     def test_02_validate_assignment_returns_warnings(self, manager_headers):
         """Test that assignment validation can return warnings"""
