@@ -128,10 +128,15 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 - Next shift API endpoint (/api/shifts/next) returns date_label ("Tomorrow", "Today", or formatted date)
 - Clock-out API now returns next_shift in response
 
-### P2 -- Phase 5B (Remaining): Offline Support
-- Local TOTP/PIN validation when offline
-- Event queueing for clock-in/out when offline
-- Device identity management for kiosk terminals
+### P1 -- Phase 5B: Offline Support (Complete - Feb 10, 2026)
+- OfflineManager.js utility for local authentication and event queueing
+- Local TOTP validation using crypto-js implementation
+- Offline event queue stored in localStorage with automatic sync
+- Device identity management: /api/kiosk/register, /api/kiosk/heartbeat
+- Offline auth bundle: /api/kiosk/offline-bundle (manager only - contains employees + shifts)
+- Offline auth validation: /api/kiosk/offline-auth
+- Manual sync button when there are pending events
+- Visual indicators: Online/Offline status, unsynced count badge, offline mode notice
 
 ### P2 -- Phase 5C: Staff-facing Features (Next)
 - Unified request interface for leave, sick time, day off/on submissions
