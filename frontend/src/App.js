@@ -10,6 +10,7 @@ import ScanLogin from "./pages/ScanLogin";
 import PinEntry from "./pages/PinEntry";
 import KioskClockScreen from "./pages/KioskClockScreen";
 import StaffProfile from "./pages/StaffProfile";
+import RequestCenter from "./pages/RequestCenter";
 import ManagerDashboard from "./pages/ManagerDashboard";
 import AdminDashboard from "./pages/AdminDashboard";
 import MobileAuth from "./pages/MobileAuth";
