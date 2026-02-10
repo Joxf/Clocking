@@ -658,7 +658,20 @@ async def clock_action(request: ClockActionRequest, current_user: dict = Depends
             {"$set": {"clock_out": now.isoformat()}}
         )
         
-        return {"success": True, "action": "clock_out", "timestamp": now.isoformat()}
+        # Get next shift for the employee
+        today = now.date().isoformat()
+        next_shift = await db.shifts.find_one({
+            "employee_id": current_user["id"],
+            "shift_date": {"$gt": today},
+            "status": {"$in": ["scheduled", "swapped"]}
+        }, {"_id": 0}, sort=[("shift_date", 1)])
+        
+        return {
+            "success": True, 
+            "action": "clock_out", 
+            "timestamp": now.isoformat(),
+            "next_shift": next_shift
+        }
 
 @api_router.get("/attendance/status")
 async def get_attendance_status(current_user: dict = Depends(get_current_user)):
