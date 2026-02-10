@@ -61,6 +61,7 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 ## Key Files
 - `/app/backend/server.py` -- All backend endpoints
 - `/app/frontend/src/components/StaffManagement.js` -- Staff CRUD with modals
+- `/app/frontend/src/pages/KioskClockScreen.js` -- Kiosk clock-in/out with success screen
 - `/app/frontend/src/pages/StaffPlanner.js` -- Monthly planner grid
 - `/app/frontend/src/pages/StaffProfile.js` -- Staff hub with 6 tabs
 - `/app/frontend/src/pages/ManagerDashboard.js` -- Manager hub with sidebar nav
