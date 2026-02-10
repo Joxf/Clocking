@@ -345,13 +345,22 @@ const KioskClockScreen = () => {
         <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-8 text-center" data-testid="clock-out-success">
           {/* Success Icon */}
           <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-green-100 flex items-center justify-center">
-            <CheckCircle size={48} className="text-green-600" />
+            {clockOutData?.offline ? (
+              <CloudOff size={48} className="text-green-600" />
+            ) : (
+              <CheckCircle size={48} className="text-green-600" />
+            )}
           </div>
           
           {/* Success Message */}
           <h1 className="text-2xl font-bold text-gray-900 mb-2" data-testid="success-title">
             Successfully Clocked Out
           </h1>
+          {clockOutData?.offline && (
+            <p className="text-orange-500 text-sm mb-2" data-testid="offline-notice">
+              (Queued offline - will sync when connected)
+            </p>
+          )}
           <p className="text-gray-500 mb-6" data-testid="clock-out-time">
             {new Date(clockOutData?.timestamp).toLocaleString('en-GB', {
               weekday: 'short',
