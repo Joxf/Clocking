@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
+import offlineManager from '../utils/OfflineManager';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -20,63 +21,73 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [offlineQueue, setOfflineQueue] = useState([]);
+  const [lastSyncStatus, setLastSyncStatus] = useState(null);
 
   // Monitor online status
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
+    const handleOnline = () => {
+      setIsOnline(true);
+      // Attempt to sync when coming back online
+      if (token) {
+        offlineManager.syncQueue(token).then(result => {
+          setLastSyncStatus(result);
+          setOfflineQueue(offlineManager.getQueue());
+        });
+      }
+    };
     const handleOffline = () => setIsOnline(false);
     
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
     
+    // Listen to offline manager events
+    const unsubscribe = offlineManager.addListener((event, data) => {
+      if (event === 'queue_updated') {
+        setOfflineQueue(data.queue);
+      } else if (event === 'sync_complete') {
+        setLastSyncStatus({ success: true, ...data });
+        setOfflineQueue(offlineManager.getQueue());
+      }
+    });
+    
     return () => {
       window.removeEventListener('online', handleOnline);
       window.removeEventListener('offline', handleOffline);
+      unsubscribe();
     };
-  }, []);
+  }, [token]);
 
   // Load offline queue from localStorage
   useEffect(() => {
-    const savedQueue = localStorage.getItem('offline_queue');
-    if (savedQueue) {
-      setOfflineQueue(JSON.parse(savedQueue));
-    }
+    setOfflineQueue(offlineManager.getQueue());
   }, []);
 
   // Sync offline queue when online
   useEffect(() => {
     if (isOnline && offlineQueue.length > 0 && token) {
-      syncOfflineEvents();
+      const unsyncedCount = offlineQueue.filter(e => !e.synced).length;
+      if (unsyncedCount > 0) {
+        offlineManager.syncQueue(token).then(result => {
+          setLastSyncStatus(result);
+        });
+      }
     }
-  }, [isOnline, offlineQueue, token]);
-
-  const syncOfflineEvents = async () => {
-    if (offlineQueue.length === 0) return;
-    
-    try {
-      await axios.post(`${API}/sync/offline-events`, {
-        events: offlineQueue
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      setOfflineQueue([]);
-      localStorage.removeItem('offline_queue');
-    } catch (error) {
-      console.error('Failed to sync offline events:', error);
-    }
-  };
-
-  const addToOfflineQueue = useCallback((event) => {
-    const newQueue = [...offlineQueue, event];
-    setOfflineQueue(newQueue);
-    localStorage.setItem('offline_queue', JSON.stringify(newQueue));
-  }, [offlineQueue]);
+  }, [isOnline, token]);
 
   // Validate token on mount
   useEffect(() => {
     const validateToken = async () => {
       if (!token) {
+        setLoading(false);
+        return;
+      }
+
+      // If offline, use stored user data
+      if (!navigator.onLine) {
+        const storedUser = localStorage.getItem('user');
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        }
         setLoading(false);
         return;
       }
@@ -91,6 +102,10 @@ export const AuthProvider = ({ children }) => {
         if (storedUser) {
           setUser(JSON.parse(storedUser));
         }
+        
+        // Try to refresh offline bundle
+        refreshOfflineBundle();
+        
       } catch (error) {
         // Token invalid or expired
         logout();
@@ -102,30 +117,89 @@ export const AuthProvider = ({ children }) => {
     validateToken();
   }, [token]);
 
+  // Refresh offline bundle periodically
+  const refreshOfflineBundle = useCallback(async () => {
+    if (!token || !isOnline) return;
+    
+    const storedUser = localStorage.getItem('user');
+    const user = storedUser ? JSON.parse(storedUser) : null;
+    
+    // Only managers/admins can download bundle
+    if (!user || !['manager', 'admin'].includes(user.role)) return;
+    
+    try {
+      const response = await axios.get(`${API}/kiosk/offline-bundle`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (response.data.success) {
+        offlineManager.setOfflineBundle(response.data);
+        console.log('Offline bundle refreshed');
+      }
+    } catch (error) {
+      console.error('Failed to refresh offline bundle:', error);
+    }
+  }, [token, isOnline]);
+
   const validateQR = async (qrData) => {
     const response = await axios.post(`${API}/auth/validate-qr`, { qr_data: qrData });
     return response.data;
   };
 
   const validatePIN = async (employeeId, pin) => {
-    const response = await axios.post(`${API}/auth/validate-pin`, {
-      employee_id: employeeId,
-      pin: pin
-    });
+    // Try online validation first
+    if (isOnline) {
+      try {
+        const response = await axios.post(`${API}/auth/validate-pin`, {
+          employee_id: employeeId,
+          pin: pin
+        });
+        
+        const { token: newToken, employee, expires_at } = response.data;
+        
+        setToken(newToken);
+        setUser(employee);
+        localStorage.setItem('auth_token', newToken);
+        localStorage.setItem('user', JSON.stringify(employee));
+        localStorage.setItem('token_expires', expires_at);
+        
+        return response.data;
+      } catch (error) {
+        // If network error, try offline
+        if (!error.response) {
+          return validatePINOffline(employeeId, pin);
+        }
+        throw error;
+      }
+    }
     
-    const { token: newToken, employee, expires_at } = response.data;
+    // Offline validation
+    return validatePINOffline(employeeId, pin);
+  };
+
+  const validatePINOffline = (employeeId, pin) => {
+    // Get employee code from stored data
+    const result = offlineManager.validatePinLocally(employeeId, pin);
     
-    setToken(newToken);
-    setUser(employee);
-    localStorage.setItem('auth_token', newToken);
-    localStorage.setItem('user', JSON.stringify(employee));
-    localStorage.setItem('token_expires', expires_at);
+    if (result.success) {
+      // Create offline session
+      const offlineUser = result.employee;
+      setUser(offlineUser);
+      localStorage.setItem('user', JSON.stringify(offlineUser));
+      localStorage.setItem('offline_session', 'true');
+      
+      return {
+        token: null,
+        employee: offlineUser,
+        offline: true
+      };
+    }
     
-    return response.data;
+    throw new Error(result.error || 'Offline validation failed');
   };
 
   const logout = useCallback(async () => {
-    if (token) {
+    if (token && isOnline) {
       try {
         await axios.post(`${API}/auth/logout`, {}, {
           headers: { Authorization: `Bearer ${token}` }
@@ -140,47 +214,55 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('auth_token');
     localStorage.removeItem('user');
     localStorage.removeItem('token_expires');
-  }, [token]);
+    localStorage.removeItem('offline_session');
+  }, [token, isOnline]);
 
   const clockIn = async () => {
-    if (!isOnline) {
-      addToOfflineQueue({
-        id: Date.now().toString(),
-        employee_id: user.employee_id,
-        auth_type: 'clock_in',
-        timestamp: new Date().toISOString()
-      });
-      return { success: true, offline: true };
+    const result = await offlineManager.clockIn(user.id, user.employee_id, token);
+    
+    if (result.offline) {
+      setOfflineQueue(offlineManager.getQueue());
     }
-
-    const response = await axios.post(`${API}/attendance/clock`, {
-      employee_id: user.employee_id,
-      action: 'clock_in'
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    return response.data;
+    
+    return result;
   };
 
   const clockOut = async () => {
-    if (!isOnline) {
-      addToOfflineQueue({
-        id: Date.now().toString(),
-        employee_id: user.employee_id,
-        auth_type: 'clock_out',
-        timestamp: new Date().toISOString()
-      });
-      return { success: true, offline: true };
+    const result = await offlineManager.clockOut(user.id, user.employee_id, token);
+    
+    if (result.offline) {
+      setOfflineQueue(offlineManager.getQueue());
     }
-
-    const response = await axios.post(`${API}/attendance/clock`, {
-      employee_id: user.employee_id,
-      action: 'clock_out'
-    }, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    return response.data;
+    
+    return result;
   };
+
+  const addToOfflineQueue = useCallback((event) => {
+    offlineManager.addToQueue(event);
+    setOfflineQueue(offlineManager.getQueue());
+  }, []);
+
+  const syncOfflineQueue = useCallback(async () => {
+    if (!token) return { success: false, reason: 'No token' };
+    const result = await offlineManager.syncQueue(token);
+    setLastSyncStatus(result);
+    setOfflineQueue(offlineManager.getQueue());
+    return result;
+  }, [token]);
+
+  const getOfflineBundleStatus = useCallback(() => {
+    const bundle = offlineManager.getOfflineBundle();
+    const age = offlineManager.getBundleAge();
+    
+    return {
+      hasBundle: !!bundle,
+      employeeCount: bundle?.employees?.length || 0,
+      shiftCount: bundle?.shifts?.length || 0,
+      age,
+      isStale: age?.isStale || false,
+      expiresAt: bundle?.expires_at
+    };
+  }, []);
 
   const value = {
     user,
@@ -188,12 +270,18 @@ export const AuthProvider = ({ children }) => {
     loading,
     isOnline,
     offlineQueue,
+    lastSyncStatus,
     validateQR,
     validatePIN,
     logout,
     clockIn,
     clockOut,
-    addToOfflineQueue
+    addToOfflineQueue,
+    syncOfflineQueue,
+    refreshOfflineBundle,
+    getOfflineBundleStatus,
+    deviceId: offlineManager.getDeviceId(),
+    deviceName: offlineManager.getDeviceName()
   };
 
   return (
