@@ -51,12 +51,12 @@ function AppContent() {
         <Route path="/pin" element={<PinEntry />} />
         <Route path="/mobile-auth" element={<MobileAuth />} />
         
-        {/* Staff Dashboard (Clock Screen) */}
+        {/* Staff Dashboard (Kiosk Clock Screen) */}
         <Route
           path="/staff"
           element={
             <ProtectedRoute allowedRoles={['staff', 'manager', 'admin']}>
-              <StaffDashboard />
+              <KioskClockScreen />
             </ProtectedRoute>
           }
         />
