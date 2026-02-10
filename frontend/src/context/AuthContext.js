@@ -72,7 +72,7 @@ export const AuthProvider = ({ children }) => {
         });
       }
     }
-  }, [isOnline, token]);
+  }, [isOnline, token, offlineQueue]);
 
   // Validate token on mount
   useEffect(() => {
@@ -93,7 +93,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       try {
-        const response = await axios.get(`${API}/attendance/status`, {
+        await axios.get(`${API}/attendance/status`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -103,12 +103,13 @@ export const AuthProvider = ({ children }) => {
           setUser(JSON.parse(storedUser));
         }
         
-        // Try to refresh offline bundle
-        refreshOfflineBundle();
-        
       } catch (error) {
         // Token invalid or expired
-        logout();
+        localStorage.removeItem('auth_token');
+        localStorage.removeItem('user');
+        localStorage.removeItem('token_expires');
+        setToken(null);
+        setUser(null);
       } finally {
         setLoading(false);
       }
