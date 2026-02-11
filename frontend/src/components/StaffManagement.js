@@ -142,6 +142,7 @@ const StaffManagement = ({ token, onOpenNotes }) => {
               <th className="px-3 py-2 text-center font-medium text-gray-600">Role</th>
               <th className="px-3 py-2 text-center font-medium text-gray-600">Type</th>
               <th className="px-3 py-2 text-center font-medium text-gray-600">Contract</th>
+              <th className="px-3 py-2 text-left font-medium text-gray-600">Shift Pref</th>
               <th className="px-3 py-2 text-center font-medium text-gray-600">Status</th>
               <th className="px-3 py-2 text-center font-medium text-gray-600">Actions</th>
             </tr>
