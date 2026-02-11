@@ -74,6 +74,7 @@ class Employee(BaseModel):
     employment_type: str = "permanent"  # permanent, agency, bank
     status: str = "active"  # active, inactive, on_leave
     contract_hours: float = 36.0  # Weekly contracted hours
+    shift_preferences: List[str] = Field(default_factory=list)  # nights_only, weekends_only, weekdays_only, earlies_only, lates_only, no_nights, flexible
     pin_hash: Optional[str] = None  # Hashed 4-digit PIN
     totp_secret: Optional[str] = None  # 32-char TOTP secret
     totp_enrolled: bool = False
