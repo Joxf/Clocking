@@ -908,21 +908,70 @@ async def clock_action(request: ClockActionRequest, current_user: dict = Depends
         if attendance and attendance.get("clock_in"):
             raise HTTPException(status_code=400, detail="Already clocked in today")
         
+        # Determine status based on late/early
+        status = "present"
+        if request.late_early_type == "late":
+            status = "late"
+        
+        # Build attendance record data
+        attendance_data = {
+            "clock_in": now.isoformat(),
+            "status": status,
+        }
+        
+        # Add late/early reason if provided
+        if request.late_early_reason:
+            attendance_data["late_early_reason"] = request.late_early_reason
+            attendance_data["late_early_type"] = request.late_early_type
+        
         if attendance:
             await db.attendance.update_one(
                 {"id": attendance["id"]},
-                {"$set": {"clock_in": now.isoformat()}}
+                {"$set": attendance_data}
             )
         else:
             new_attendance = {
                 "id": str(uuid.uuid4()),
                 "employee_id": current_user["id"],
                 "care_home_id": current_user["care_home_id"],
-                "clock_in": now.isoformat(),
-                "status": "present",
-                "created_at": now.isoformat()
+                "created_at": now.isoformat(),
+                **attendance_data
             }
             await db.attendance.insert_one(new_attendance)
+        
+        # Send manager notification if late and notifications enabled
+        if request.late_early_type == "late":
+            # Get control preferences to check if notifications are enabled
+            ctrl_prefs = await db.control_preferences.find_one(
+                {"care_home_id": current_user["care_home_id"]}, {"_id": 0}
+            )
+            notify_on_late = True
+            if ctrl_prefs and ctrl_prefs.get("login", {}).get("late_early", {}).get("notify_manager_on_late") is False:
+                notify_on_late = False
+            
+            if notify_on_late:
+                # Create notification for managers
+                managers = await db.employees.find(
+                    {"care_home_id": current_user["care_home_id"], "role": "manager", "status": "active"},
+                    {"_id": 0, "id": 1}
+                ).to_list(100)
+                
+                employee_name = f"{current_user.get('first_name', '')} {current_user.get('last_name', '')}"
+                reason_text = f" Reason: {request.late_early_reason}" if request.late_early_reason else ""
+                
+                for manager in managers:
+                    notification = {
+                        "id": str(uuid.uuid4()),
+                        "care_home_id": current_user["care_home_id"],
+                        "recipient_id": manager["id"],
+                        "title": "Late Clock-In Alert",
+                        "content": f"{employee_name} clocked in late at {now.strftime('%H:%M')}.{reason_text}",
+                        "notification_type": "late_clock_in",
+                        "related_id": current_user["id"],
+                        "is_read": False,
+                        "created_at": now.isoformat()
+                    }
+                    await db.notifications.insert_one(notification)
         
         return {"success": True, "action": "clock_in", "timestamp": now.isoformat()}
     
