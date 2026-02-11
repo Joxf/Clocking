@@ -48,6 +48,8 @@ const StaffProfile = () => {
   const [shiftSwaps, setShiftSwaps] = useState({ shift_swaps: [], available_swaps: [], direct_requests: [] });
   const [colleagues, setColleagues] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [pendingRTW, setPendingRTW] = useState(null);
+  const [showRTWModal, setShowRTWModal] = useState(false);
   
   // Modal states
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -61,17 +63,19 @@ const StaffProfile = () => {
   const closeDayRequestModal = useCallback(() => setShowDayRequestModal(false), []);
   const closeSwapModal = useCallback(() => { setShowSwapModal(false); setSelectedShift(null); }, []);
   const closeMessagesModal = useCallback(() => setShowMessagesModal(false), []);
+  const closeRTWModal = useCallback(() => setShowRTWModal(false), []);
 
   // Memoized fetchAllData to use as stable onSuccess callback
   const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
-      const [profileRes, leaveRes, dayRes, swapRes, colleaguesRes] = await Promise.all([
+      const [profileRes, leaveRes, dayRes, swapRes, colleaguesRes, rtwRes] = await Promise.all([
         axios.get(`${API}/staff/profile`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API}/leave-requests`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API}/day-requests`, { headers: { Authorization: `Bearer ${token}` } }),
         axios.get(`${API}/shift-swaps`, { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get(`${API}/staff/colleagues`, { headers: { Authorization: `Bearer ${token}` } })
+        axios.get(`${API}/staff/colleagues`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API}/rtw/my-pending`, { headers: { Authorization: `Bearer ${token}` } })
       ]);
       
       setProfile(profileRes.data);
