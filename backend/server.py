@@ -3207,6 +3207,116 @@ async def get_shift_templates():
         "coverage_baseline": COVERAGE_BASELINE
     }}
 
+# ============ CONTROL PREFERENCES ENDPOINTS ============
+
+async def get_control_preferences(care_home_id: str) -> dict:
+    """Get control preferences for a care home, creating defaults if not exists"""
+    prefs = await db.control_preferences.find_one({"care_home_id": care_home_id}, {"_id": 0})
+    if not prefs:
+        # Create default preferences
+        default_prefs = ControlPreferences(care_home_id=care_home_id)
+        await db.control_preferences.insert_one(serialize_datetime(default_prefs.model_dump()))
+        prefs = default_prefs.model_dump()
+    return prefs
+
+@api_router.get("/control-preferences")
+async def get_preferences(current_user: dict = Depends(get_current_user)):
+    """Get control preferences for current care home"""
+    if current_user["role"] not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    care_home = await db.care_homes.find_one({"id": current_user["care_home_id"]}, {"_id": 0})
+    if not care_home:
+        raise HTTPException(status_code=404, detail="Care home not found")
+    
+    prefs = await get_control_preferences(care_home["id"])
+    return {"preferences": prefs}
+
+@api_router.put("/control-preferences")
+async def update_preferences(prefs: dict, current_user: dict = Depends(get_current_user)):
+    """Update control preferences"""
+    if current_user["role"] not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    care_home = await db.care_homes.find_one({"id": current_user["care_home_id"]}, {"_id": 0})
+    if not care_home:
+        raise HTTPException(status_code=404, detail="Care home not found")
+    
+    # Update or create preferences
+    prefs["care_home_id"] = care_home["id"]
+    prefs["updated_at"] = datetime.now(timezone.utc).isoformat()
+    
+    existing = await db.control_preferences.find_one({"care_home_id": care_home["id"]})
+    if existing:
+        await db.control_preferences.update_one(
+            {"care_home_id": care_home["id"]},
+            {"$set": prefs}
+        )
+    else:
+        prefs["id"] = str(uuid.uuid4())
+        prefs["created_at"] = datetime.now(timezone.utc).isoformat()
+        await db.control_preferences.insert_one(prefs)
+    
+    return {"success": True}
+
+@api_router.get("/control-preferences/staffing-requirements/{shift_type}")
+async def get_staffing_requirements(shift_type: str, current_user: dict = Depends(get_current_user)):
+    """Get staffing requirements for a specific shift type"""
+    prefs = await get_control_preferences(current_user["care_home_id"])
+    staffing = prefs.get("staffing", {})
+    requirements = staffing.get(shift_type, {})
+    return {"requirements": requirements, "weekend_modifier": staffing.get("weekend_modifier", 0.8)}
+
+@api_router.post("/control-preferences/override-log")
+async def log_override(
+    rule_type: str,
+    rule_violated: str,
+    staff_id: str,
+    staff_name: str,
+    shift_date: str,
+    justification: str,
+    is_agency: bool = False,
+    current_user: dict = Depends(get_current_user)
+):
+    """Log a rule override for audit purposes"""
+    if current_user["role"] not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    log_entry = OverrideLog(
+        care_home_id=current_user["care_home_id"],
+        manager_id=current_user["id"],
+        manager_name=f"{current_user['first_name']} {current_user['last_name']}",
+        rule_type=rule_type,
+        rule_violated=rule_violated,
+        staff_id=staff_id,
+        staff_name=staff_name,
+        shift_date=shift_date,
+        justification=justification,
+        is_agency=is_agency
+    )
+    await db.override_logs.insert_one(serialize_datetime(log_entry.model_dump()))
+    return {"success": True, "log_id": log_entry.id}
+
+@api_router.get("/control-preferences/override-logs")
+async def get_override_logs(
+    start_date: Optional[str] = None,
+    end_date: Optional[str] = None,
+    rule_type: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get override audit logs"""
+    if current_user["role"] not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    query = {"care_home_id": current_user["care_home_id"]}
+    if start_date and end_date:
+        query["shift_date"] = {"$gte": start_date, "$lte": end_date}
+    if rule_type:
+        query["rule_type"] = rule_type
+    
+    logs = await db.override_logs.find(query, {"_id": 0}).sort("created_at", -1).to_list(500)
+    return {"logs": logs}
+
 @api_router.get("/planner/monthly")
 async def get_monthly_planner(year: int, month: int, current_user: dict = Depends(get_current_user)):
     """Get full monthly planner data: staff × days grid"""
