@@ -1046,12 +1046,17 @@ const LoginTab = ({ prefs, updateNested, onReset }) => {
           />
         </div>
       </Section>
+
+      {/* Reset to Defaults */}
+      <div className="pt-4 border-t border-gray-200">
+        <ResetToDefaultsButton onReset={onReset} tabName="Login" />
+      </div>
     </div>
   );
 };
 
 // REQUESTS TAB
-const RequestsTab = ({ prefs, updateNested }) => {
+const RequestsTab = ({ prefs, updateNested, onReset }) => {
   if (!prefs) return null;
 
   const requestsPrefs = prefs.requests || {};
