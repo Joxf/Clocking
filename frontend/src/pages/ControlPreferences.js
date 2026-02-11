@@ -1356,9 +1356,9 @@ const ControlPreferences = () => {
 
       {/* Tab Content */}
       <div className="space-y-6">
-        {activeTab === 'planner' && <ShiftPlannerTab prefs={prefs} updateNested={updateNested} />}
-        {activeTab === 'login' && <LoginTab prefs={prefs} updateNested={updateNested} />}
-        {activeTab === 'requests' && <RequestsTab prefs={prefs} updateNested={updateNested} />}
+        {activeTab === 'planner' && <ShiftPlannerTab prefs={prefs} updateNested={updateNested} onReset={resetPlannerToDefaults} />}
+        {activeTab === 'login' && <LoginTab prefs={prefs} updateNested={updateNested} onReset={resetLoginToDefaults} />}
+        {activeTab === 'requests' && <RequestsTab prefs={prefs} updateNested={updateNested} onReset={resetRequestsToDefaults} />}
       </div>
 
       {/* Save Button (Bottom) */}
