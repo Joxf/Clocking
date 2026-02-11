@@ -291,6 +291,11 @@ const ManagerDashboard = () => {
           <AlertCircle size={18} /><span>Operational</span>
         </button>
 
+        <div className="frappe-sidebar-section">Reports</div>
+        <button onClick={() => navigate('/manager/late-arrivals')} className="frappe-sidebar-item w-full text-left" data-testid="late-arrivals-nav">
+          <FileText size={18} /><span>Late Arrivals</span>
+        </button>
+
         <div className="frappe-sidebar-section">Settings</div>
         <button onClick={() => navigate('/manager/control-preferences')} className="frappe-sidebar-item w-full text-left" data-testid="control-prefs-nav">
           <Settings size={18} /><span>Control Preferences</span>
