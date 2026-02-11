@@ -269,6 +269,11 @@ const StaffProfile = () => {
 
       {/* Main content */}
       <main className="frappe-main">
+        {/* RTW Trigger - Shows if staff has pending RTW */}
+        {pendingRTW && (
+          <RTWTrigger rtw={pendingRTW} onOpenForm={() => setShowRTWModal(true)} />
+        )}
+
         {/* Overview Tab */}
         {activeTab === 'overview' && profile && (
           <>
