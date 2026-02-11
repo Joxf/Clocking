@@ -381,7 +381,7 @@ const ReasonListEditor = ({ reasons = [], onChange, label }) => {
 // ============ TAB PANELS ============
 
 // SHIFT PLANNER TAB
-const ShiftPlannerTab = ({ prefs, updateNested }) => {
+const ShiftPlannerTab = ({ prefs, updateNested, onReset }) => {
   if (!prefs) return null;
 
   return (
