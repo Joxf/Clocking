@@ -3468,6 +3468,34 @@ async def get_preferences(current_user: dict = Depends(get_current_user)):
     prefs = await get_control_preferences(care_home["id"])
     return {"preferences": prefs}
 
+@api_router.get("/control-preferences/policies")
+async def get_policies_public(current_user: dict = Depends(get_current_user)):
+    """Get leave and request policies - accessible to all staff (read-only)"""
+    care_home = await db.care_homes.find_one({"id": current_user["care_home_id"]}, {"_id": 0})
+    if not care_home:
+        raise HTTPException(status_code=404, detail="Care home not found")
+    
+    prefs = await get_control_preferences(care_home["id"])
+    
+    # Return only the request/leave policies, not the full control preferences
+    leave_policies = prefs.get("requests", {}).get("leave", {})
+    swap_policies = prefs.get("requests", {}).get("swap", {})
+    
+    return {
+        "leave": {
+            "minimum_notice_days": leave_policies.get("minimum_notice_days", 14),
+            "max_consecutive_leave_days": leave_policies.get("max_consecutive_leave_days", 14),
+            "max_day_off_requests_per_month": leave_policies.get("max_day_off_requests_per_month", 4),
+            "allow_emergency_leave_override": leave_policies.get("allow_emergency_leave_override", True)
+        },
+        "swap": {
+            "allow_direct_swaps": swap_policies.get("allow_direct_swaps", True),
+            "allow_open_swaps": swap_policies.get("allow_open_swaps", True),
+            "require_manager_approval": swap_policies.get("require_manager_approval", True),
+            "swap_request_expiry_hours": swap_policies.get("swap_request_expiry_hours", 48)
+        }
+    }
+
 @api_router.put("/control-preferences")
 async def update_preferences(prefs: dict, current_user: dict = Depends(get_current_user)):
     """Update control preferences"""
