@@ -3494,6 +3494,7 @@ async def create_employee(req: CreateEmployeeRequest, current_user: dict = Depen
         job_title=req.job_title,
         employment_type=req.employment_type,
         contract_hours=req.contract_hours,
+        shift_preferences=req.shift_preferences,
         pin_hash=hash_pin(pin),
         totp_secret=totp_secret,
         totp_enrolled=True,
