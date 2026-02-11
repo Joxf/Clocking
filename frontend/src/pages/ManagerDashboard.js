@@ -286,6 +286,11 @@ const ManagerDashboard = () => {
         <button onClick={() => setActiveTab('operational')} className={`frappe-sidebar-item w-full text-left ${activeTab === 'operational' ? 'active' : ''}`} data-testid="operational-nav">
           <AlertCircle size={18} /><span>Operational</span>
         </button>
+
+        <div className="frappe-sidebar-section">Settings</div>
+        <button onClick={() => navigate('/manager/control-preferences')} className="frappe-sidebar-item w-full text-left" data-testid="control-prefs-nav">
+          <Settings size={18} /><span>Control Preferences</span>
+        </button>
       </aside>
 
       {/* Main content */}
