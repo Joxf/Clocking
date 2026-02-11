@@ -682,8 +682,10 @@ const RequestCenter = () => {
           )}
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Message (optional)</label>
+            <label htmlFor="swap_message" className="block text-sm font-medium text-gray-700 mb-2">Message (optional)</label>
             <textarea
+              id="swap_message"
+              name="reason"
               value={formData.reason || ''}
               onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
               placeholder="Any notes for the swap..."
