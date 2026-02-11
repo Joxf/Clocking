@@ -134,6 +134,43 @@ const RuleModeSelector = ({ value, onChange, label }) => {
   );
 };
 
+// Reset to Defaults Button Component
+const ResetToDefaultsButton = ({ onReset, tabName }) => {
+  const [showConfirm, setShowConfirm] = useState(false);
+  
+  if (showConfirm) {
+    return (
+      <div className="flex items-center gap-2 p-3 bg-amber-50 border border-amber-200 rounded-lg">
+        <AlertTriangle size={16} className="text-amber-600" />
+        <span className="text-sm text-amber-800">Reset {tabName} settings to defaults?</span>
+        <button
+          onClick={() => { onReset(); setShowConfirm(false); }}
+          className="px-3 py-1 text-xs bg-amber-500 text-white rounded-lg hover:bg-amber-600"
+        >
+          Yes, Reset
+        </button>
+        <button
+          onClick={() => setShowConfirm(false)}
+          className="px-3 py-1 text-xs bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300"
+        >
+          Cancel
+        </button>
+      </div>
+    );
+  }
+  
+  return (
+    <button
+      onClick={() => setShowConfirm(true)}
+      className="flex items-center gap-2 px-4 py-2 text-sm text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 hover:border-gray-300 transition-colors"
+      data-testid={`reset-${tabName.toLowerCase().replace(' ', '-')}-btn`}
+    >
+      <RotateCcw size={16} />
+      Reset to Defaults
+    </button>
+  );
+};
+
 // Number Input Component
 const NumberInput = ({ label, value, onChange, min = 0, max = 999, suffix = '', help, className = '' }) => (
   <div className={`space-y-1 ${className}`}>
