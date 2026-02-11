@@ -1259,6 +1259,33 @@ const ControlPreferences = () => {
     });
   };
 
+  // Reset handlers for each tab
+  const resetPlannerToDefaults = () => {
+    setPrefs(prev => ({
+      ...prev,
+      ...DEFAULT_PLANNER_PREFS
+    }));
+  };
+
+  const resetLoginToDefaults = () => {
+    setPrefs(prev => ({
+      ...prev,
+      login: DEFAULT_LOGIN_PREFS.login,
+      additional: {
+        ...prev.additional,
+        grace_tolerance: DEFAULT_LOGIN_PREFS.additional.grace_tolerance,
+        attendance_patterns: DEFAULT_LOGIN_PREFS.additional.attendance_patterns
+      }
+    }));
+  };
+
+  const resetRequestsToDefaults = () => {
+    setPrefs(prev => ({
+      ...prev,
+      requests: DEFAULT_REQUESTS_PREFS.requests
+    }));
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -1277,9 +1304,19 @@ const ControlPreferences = () => {
     <div className="max-w-4xl mx-auto" data-testid="control-preferences-page">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Control Preferences</h1>
-          <p className="text-sm text-gray-500">Configure operational rules and settings</p>
+        <div className="flex items-center gap-4">
+          <button
+            onClick={() => navigate('/manager')}
+            data-testid="home-btn"
+            className="p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Back to Dashboard"
+          >
+            <Home size={22} />
+          </button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Control Preferences</h1>
+            <p className="text-sm text-gray-500">Configure operational rules and settings</p>
+          </div>
         </div>
         <button
           onClick={savePreferences}
@@ -1307,7 +1344,7 @@ const ControlPreferences = () => {
                 activeTab === tab.id
                   ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
                   : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-              }`}
+              }`}}
               data-testid={`tab-${tab.id}`}
             >
               <tab.icon size={18} />
