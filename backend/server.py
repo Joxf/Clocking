@@ -3736,7 +3736,7 @@ async def get_sickness_trends(employee_id: str, current_user: dict = Depends(get
     }
 
 @api_router.put("/leave/mark-rtw/{leave_id}")
-async def mark_return_to_work(leave_id: str, notes: str = "", current_user: dict = Depends(get_current_user)):
+async def mark_leave_rtw_complete(leave_id: str, notes: str = "", current_user: dict = Depends(get_current_user)):
     """Mark a sick leave episode as return-to-work completed"""
     if current_user["role"] not in ("manager", "admin"):
         raise HTTPException(status_code=403, detail="Manager access required")
