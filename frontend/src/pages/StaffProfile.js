@@ -7,6 +7,7 @@ import MessagesInbox from '../components/MessagesInbox';
 import MonthlyCalendar from '../components/MonthlyCalendar';
 import TeamCalendar from '../components/TeamCalendar';
 import { LeaveRequestModal, DayRequestModal, ShiftSwapModal } from '../components/StaffProfileModals';
+import { RTWTrigger, RTWFormModal } from '../components/RTWComponents';
 import {
   User,
   Calendar,
