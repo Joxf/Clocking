@@ -551,10 +551,32 @@ const StaffProfile = () => {
         )}
       </main>
 
-      {/* Modals */}
-      {showLeaveModal && <LeaveRequestModal />}
-      {showDayRequestModal && <DayRequestModal />}
-      {showSwapModal && selectedShift && <ShiftSwapModal />}
+      {/* Modals - Using external components to prevent re-render issues */}
+      {showLeaveModal && (
+        <LeaveRequestModal 
+          token={token} 
+          onClose={() => setShowLeaveModal(false)} 
+          onSuccess={fetchAllData}
+        />
+      )}
+      {showDayRequestModal && (
+        <DayRequestModal 
+          token={token} 
+          onClose={() => setShowDayRequestModal(false)} 
+          onSuccess={fetchAllData}
+        />
+      )}
+      {showSwapModal && selectedShift && (
+        <ShiftSwapModal 
+          token={token}
+          selectedShift={selectedShift}
+          colleagues={colleagues}
+          onClose={() => { setShowSwapModal(false); setSelectedShift(null); }} 
+          onSuccess={fetchAllData}
+          getJobTitleDisplay={getJobTitleDisplay}
+          formatDate={formatDate}
+        />
+      )}
       {showMessagesModal && <MessagesInbox onClose={() => setShowMessagesModal(false)} />}
     </div>
   );
