@@ -431,6 +431,122 @@ class ShiftPreferenceRules(BaseModel):
     respect_preferences: bool = True
     mode: RuleMode = RuleMode.soft  # soft = warn if violating, hard = block
 
+# ============ LOGIN & AUTH CONTROL PREFERENCES ============
+
+class AuthMode(str, Enum):
+    pin_only = "pin_only"
+    qr_only = "qr_only"
+    qr_and_pin = "qr_and_pin"
+
+class PINSettings(BaseModel):
+    pin_length: int = 4
+    max_failed_attempts: int = 5
+    lockout_duration_minutes: int = 15
+    enable_progressive_delay: bool = False
+    require_pin_change_days: int = 0  # 0 = disabled
+
+class AuthenticationSettings(BaseModel):
+    auth_mode: AuthMode = AuthMode.qr_and_pin
+    pin_settings: PINSettings = Field(default_factory=PINSettings)
+
+class LateEarlyReason(BaseModel):
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    reason_text: str
+    is_active: bool = True
+    order: int = 0
+
+class LateEarlyControls(BaseModel):
+    enable_late_reason: bool = True
+    enable_early_reason: bool = True
+    late_grace_minutes: int = 5
+    early_grace_minutes: int = 15
+    late_reason_mandatory: bool = True
+    early_reason_mandatory: bool = False
+    notify_manager_on_late: bool = True
+    notify_manager_on_early: bool = False
+    enable_free_text: bool = False
+    max_reasons_displayed: int = 10
+    late_reasons: List[LateEarlyReason] = Field(default_factory=lambda: [
+        LateEarlyReason(reason_text="Traffic/Transport issues", order=1),
+        LateEarlyReason(reason_text="Childcare issues", order=2),
+        LateEarlyReason(reason_text="Medical appointment", order=3),
+        LateEarlyReason(reason_text="Family emergency", order=4),
+        LateEarlyReason(reason_text="Weather conditions", order=5),
+    ])
+    early_reasons: List[LateEarlyReason] = Field(default_factory=lambda: [
+        LateEarlyReason(reason_text="Cover for colleague", order=1),
+        LateEarlyReason(reason_text="Early handover", order=2),
+        LateEarlyReason(reason_text="Training", order=3),
+        LateEarlyReason(reason_text="Meeting", order=4),
+    ])
+
+class SessionControls(BaseModel):
+    staff_session_timeout_minutes: int = 5
+    manager_session_timeout_minutes: int = 60
+    auto_logout_on_inactivity: bool = True
+    allow_multiple_devices: bool = False
+
+class LoginControls(BaseModel):
+    authentication: AuthenticationSettings = Field(default_factory=AuthenticationSettings)
+    late_early: LateEarlyControls = Field(default_factory=LateEarlyControls)
+    session: SessionControls = Field(default_factory=SessionControls)
+
+# ============ REQUESTS CONTROL PREFERENCES ============
+
+class LeaveControls(BaseModel):
+    minimum_notice_days: int = 14
+    max_consecutive_leave_days: int = 14
+    max_day_off_requests_per_month: int = 4
+    block_blackout_dates: bool = False
+    blackout_dates: List[str] = Field(default_factory=list)  # ISO date strings
+    allow_emergency_leave_override: bool = True
+    auto_approve_short_leave: bool = False
+    short_leave_threshold_days: int = 3
+
+class SwapControls(BaseModel):
+    allow_direct_swaps: bool = True
+    allow_open_swaps: bool = True
+    require_manager_approval: bool = True
+    auto_approve_if_rules_satisfied: bool = False
+    swap_request_expiry_hours: int = 48
+
+class RequestsControls(BaseModel):
+    leave: LeaveControls = Field(default_factory=LeaveControls)
+    swap: SwapControls = Field(default_factory=SwapControls)
+
+# ============ ADDITIONAL CONTROL PREFERENCES ============
+
+class GraceToleranceControls(BaseModel):
+    max_monthly_late_occurrences: int = 3
+    auto_flag_habitual_lateness: bool = True
+    auto_notify_manager_threshold: int = 3
+    auto_generate_staff_note: bool = True
+
+class AttendancePatternControls(BaseModel):
+    alert_frequent_early_leave: bool = True
+    early_leave_threshold_monthly: int = 3
+    alert_excessive_overtime: bool = True
+    overtime_alert_threshold_hours: int = 10
+
+class ShiftConfirmationRules(BaseModel):
+    require_shift_confirmation: bool = False
+    auto_unassign_hours: int = 24
+    send_confirmation_reminder: bool = True
+    reminder_hours_before: int = 48
+
+class EscalationRules(BaseModel):
+    auto_notify_backup_staff: bool = True
+    auto_suggest_overtime: bool = True
+    auto_suggest_agency: bool = False
+    escalate_to_regional_manager: bool = False
+    under_coverage_threshold_hours: int = 12
+
+class AdditionalControls(BaseModel):
+    grace_tolerance: GraceToleranceControls = Field(default_factory=GraceToleranceControls)
+    attendance_patterns: AttendancePatternControls = Field(default_factory=AttendancePatternControls)
+    shift_confirmation: ShiftConfirmationRules = Field(default_factory=ShiftConfirmationRules)
+    escalation: EscalationRules = Field(default_factory=EscalationRules)
+
 class ControlPreferences(BaseModel):
     model_config = ConfigDict(extra="ignore")
     id: str = Field(default_factory=lambda: str(uuid.uuid4()))
