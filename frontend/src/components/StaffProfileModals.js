@@ -53,8 +53,10 @@ export const LeaveRequestModal = memo(({ token, onClose, onSuccess }) => {
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Leave Type</label>
+              <label htmlFor="leave_type" className="block text-sm font-medium text-gray-700 mb-1">Leave Type</label>
               <select
+                id="leave_type"
+                name="leave_type"
                 value={formData.leave_type}
                 onChange={(e) => setFormData(prev => ({...prev, leave_type: e.target.value}))}
                 className="frappe-input"
@@ -69,8 +71,10 @@ export const LeaveRequestModal = memo(({ token, onClose, onSuccess }) => {
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
+                <label htmlFor="start_date" className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
                 <input 
+                  id="start_date"
+                  name="start_date"
                   type="date" 
                   value={formData.start_date} 
                   onChange={(e) => setFormData(prev => ({...prev, start_date: e.target.value}))} 
@@ -79,8 +83,10 @@ export const LeaveRequestModal = memo(({ token, onClose, onSuccess }) => {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
+                <label htmlFor="end_date" className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
                 <input 
+                  id="end_date"
+                  name="end_date"
                   type="date" 
                   value={formData.end_date} 
                   onChange={(e) => setFormData(prev => ({...prev, end_date: e.target.value}))} 
@@ -90,8 +96,10 @@ export const LeaveRequestModal = memo(({ token, onClose, onSuccess }) => {
               </div>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Reason (optional)</label>
+              <label htmlFor="leave_reason" className="block text-sm font-medium text-gray-700 mb-1">Reason (optional)</label>
               <textarea 
+                id="leave_reason"
+                name="reason"
                 value={formData.reason} 
                 onChange={(e) => setFormData(prev => ({...prev, reason: e.target.value}))} 
                 className="frappe-input" 
