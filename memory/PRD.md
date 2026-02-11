@@ -192,6 +192,24 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 - **Display:** Shift Pref column in Staff List table with color-coded badges
 - **Future Use:** Foundation for scheduling optimization and metrics
 
+### Control Preferences System (Complete - Feb 11, 2026)
+- **Global Settings Page:** `/manager/control-preferences` accessible by Manager/Admin
+- **15 Rule Categories Implemented:**
+  1. Staffing Requirements Per Shift (min staff by role per shift type)
+  2. Consecutive Shift Limits (max consecutive days/nights)
+  3. Minimum Rest Between Shifts (11h default)
+  4. Consecutive Weekend Protection (max weekends in a row)
+  5. Leave Validation (annual, sick, day off requests)
+  6. Overtime Control (weekly/monthly limits, thresholds)
+  7. Agency Staff Management (enable/disable, limits, approval)
+  8. Staff Shift Preferences (respect preferences validation)
+  9. Conflict & Overlap Detection (always hard block)
+  10. Override Logging & Audit
+- **3 Validation Modes:** Hard Block, Soft Warning (with audit log), Disabled
+- **Dynamic Integration:** validate_assignment() function uses Control Preferences
+- **Backend:** ControlPreferences model, OverrideLog model, 5 API endpoints
+- **Frontend:** Full settings page with collapsible sections
+
 ## Backlog Complete - All Features Implemented!
 
 ### P2 -- Sick Leave Recording
