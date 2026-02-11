@@ -229,6 +229,22 @@ html.dark body {
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
 }
 
+/* Dark mode input styles */
+.dark .frappe-input {
+  background-color: #454545;
+  border-color: #5B5B5B;
+  color: var(--frappe-text-dark);
+}
+
+.dark .frappe-input:focus {
+  border-color: var(--frappe-primary);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.2);
+}
+
+.dark .frappe-input::placeholder {
+  color: #7E7E7E;
+}
+
 .frappe-input-kiosk {
   padding: 16px 20px;
   font-size: 20px;
