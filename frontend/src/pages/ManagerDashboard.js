@@ -237,6 +237,8 @@ const ManagerDashboard = () => {
           </button>
 
           <NotificationBell />
+          
+          <RTWPendingCounter onClick={() => setShowRTWRegister(true)} />
 
           <div className="flex items-center gap-2 text-gray-600 text-sm">
             <span>{user?.first_name} {user?.last_name}</span>
