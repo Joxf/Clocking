@@ -258,9 +258,19 @@ const EmployeeFormModal = ({ token, onClose, onSuccess }) => {
   const headers = { Authorization: `Bearer ${token}` };
   const [form, setForm] = useState({
     first_name: '', last_name: '', email: '', phone: '',
-    job_title: 'carer', employment_type: 'permanent', contract_hours: 36
+    job_title: 'carer', employment_type: 'permanent', contract_hours: 36,
+    shift_preferences: []
   });
   const [saving, setSaving] = useState(false);
+
+  const togglePreference = (pref) => {
+    setForm(f => ({
+      ...f,
+      shift_preferences: f.shift_preferences.includes(pref)
+        ? f.shift_preferences.filter(p => p !== pref)
+        : [...f.shift_preferences, pref]
+    }));
+  };
 
   const handleSubmit = async () => {
     if (!form.first_name || !form.last_name) return;
