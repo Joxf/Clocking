@@ -590,6 +590,13 @@ const StaffProfile = () => {
         />
       )}
       {showMessagesModal && <MessagesInbox onClose={closeMessagesModal} />}
+      {showRTWModal && pendingRTW && (
+        <RTWFormModal
+          rtw={pendingRTW}
+          onClose={closeRTWModal}
+          onUpdate={fetchAllData}
+        />
+      )}
     </div>
   );
 };
