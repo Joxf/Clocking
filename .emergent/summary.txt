@@ -1,165 +1,129 @@
 <analysis>**original_problem_statement:**
-The initial problem was a frontend compilation error (Maximum call stack size exceeded) that made the application unusable. After fixing this, the user requested the implementation of a comprehensive QR code-based authentication flow, which involved creating a mobile-friendly page for generating dynamic QR codes and a kiosk/desktop page for scanning them, followed by a PIN entry for two-factor authentication.
+The user is reporting a critical bug where forms in modals on the staff profile page keep resetting, preventing any data entry. This occurs in all modals accessible from the Staff Core (Staff Profile) page, such as Request Leave, Request Day Off, etc. The user has reported this issue multiple times, indicating previous fixes were unsuccessful.
 
-Following the successful implementation and debugging of the auth flow, the user laid out a multi-phase plan to build out the manager-facing features of the application:
--   **Phase 4A:** A detailed monthly staff planner with drag-and-drop scheduling, shift templates, and overtime tracking.
--   **Phase 4B:** An attendance management system with a calendar view, color-coded coverage status, late/no-show flags, manual adjustment capabilities, and compliance alerts.
--   **Phase 4C:** A leave management system for approving requests, tracking balances, and monitoring sickness.
--   **Phase 4D:** An operational overview dashboard with a staffing heatmap and manager notes.
--   **Phase 5A:** An enhanced staff management module with CRUD (Create, Read, Update, Delete) functionality for employees and actions like PIN/TOTP reset.
--   **Phase 5B & 5C (Future):** Kiosk improvements for handling staff queues, offline support, and a unified request system for staff.
-
-The agent has completed all of Phase 4 and is currently in the middle of implementing Phase 5A.
+Additionally, the user requested a fix for the leave types in the Annual Leave and Sick Leave tabs, which was to remove the Sick option from the annual leave dropdown and use the dedicated Report Sick feature instead. This part of the request was completed.
 
 **User's preferred language**: English
 
 **what currently exists?**
-A web application with a Python/Flask backend and a React frontend.
--   **Authentication:** A fully functional two-factor authentication system using a dynamic QR code (generated on a mobile page) scanned by a kiosk's webcam, followed by a 4-digit PIN.
--   **Manager Dashboard:** A comprehensive dashboard with multiple tabs:
-    -   **Approvals:** For managing leave, day, and shift swap requests.
-    -   **Team Calendar:** A visual overview of team schedules.
-    -   **Staff Management:** A newly built tab for adding, editing, and archiving staff, with an actions menu for PIN/TOTP resets.
-    -   **Attendance:** A monthly calendar showing daily staff coverage, flagging no-shows, and displaying Working Time Directive violations. It allows managers to click a day to see details and make manual adjustments.
-    -   **Leave:** A panel for managing leave requests, viewing balances, tracking sickness, and seeing return-to-work alerts.
-    -   **Operational Overview:** Contains a staffing heatmap and alerts for under-covered future shifts.
-    -   **Monthly Planner:** A sophisticated drag-and-drop rota with weekly/monthly hour calculations, contract compliance deltas, and detailed per-shift coverage breakdowns (e.g., 2 Nurses, 6 Care Assistants).
+The application is a comprehensive staff management system with features for scheduling, attendance, leave management, a staff-facing kiosk, and a unified request center. The backend is built with FastAPI and the frontend with React.
+
+The agent has completed several feature phases (4A-5C) and a backlog of additional features, including planner validation rules, sick leave recording, and notifications.
+
+In an attempt to fix the form resetting bug, the agent refactored the code by moving the modal components (, , ) out of the main  component and into a separate file, . However, this did not solve the underlying problem.
 
 **Last working item**:
--   **Last item agent was working:** Implementation of **Phase 5A: Staff Management Enhancements**. The agent created the backend APIs and a new  frontend component to replace the previous simple staff list. This new component includes UI for adding, editing, archiving staff, and an Actions menu for each employee.
--   **Status:** IN PROGRESS
--   **Agent Testing Done:** N
--   **Which testing method agent to use?** Frontend testing agent
--   **User Testing Done:** N
+- Last item agent was working: The agent was attempting to diagnose and fix a recurring bug where modal forms on the  page continuously refresh, preventing users from inputting any data. The agent's last action was to investigate the  component, suspecting its polling mechanism () was causing excessive re-renders throughout the application, and proposed using  as a potential solution.
+- Status: BLOCKED
+- Agent Testing Done: N (The agent's previous tests were flawed, as they only confirmed the modal appeared, not that it was interactive. The user confirmed the bug still exists.)
+- Which testing method agent to use? screenshot tool. The agent must not only open the modal but also use the  action to type text into the form fields to verify that the state persists and is not reset.
+- User Testing Done: Y (User has confirmed the bug persists after the latest attempted fix).
 
 **All Pending/In progress Issue list**:
--   **Issue 1 (P0):** The functionality of the new Staff Management tab is untested. While the UI elements (buttons, forms) have been added, it is not confirmed if the create, edit, archive, and action (PIN/TOTP reset) features work end-to-end.
-    -   **Issues Detail:**
-        -   **Attempted fixes:** None. The feature was just built.
-        -   **Next debug checklist:**
-            1.  Click Add Staff, fill out the form, and verify the new user appears in the list.
-            2.  Click Edit on an existing user, change details, and verify the list updates correctly.
-            3.  Use the Actions -> Reset PIN menu item and confirm the workflow.
-            4.  Use the Archive button and verify the user is removed from the active list.
-        -   **Why fix this issue and what will be achieved with the fix?** This will complete the Phase 5A requirement and provide managers with essential staff administration tools.
-        -   **Status:** TESTING PENDING
-        -   **Is recurring issue?** N
-        -   **Should Test frontend/backend/both after fix?** Both
-        -   **Blocked on other issue:** None
+- Issue 1: Forms in modals on the Staff Profile page keep resetting. (P0 - CRITICAL BLOCKER)
+
+**Issues Detail:**
+- **Issue 1: Forms in modals on the Staff Profile page keep resetting.**
+    - **Attempted fixes:**
+        1.  **Lifting State Up:** The agent moved the form state to the parent  component. This failed because the parent component itself was re-rendering frequently, which continued to reset the state.
+        2.  **Component Extraction:** The agent extracted the modal components into a separate file (). This also failed, indicating that the root cause is a frequent re-render of the parent component () that is still affecting the modals.
+    - **Next debug checklist:**
+        1.  **Identify the Re-render Source:** The agent correctly identified that the  component polls for notifications every 30 seconds, causing a state update. This is the most likely cause for the re-renders of parent components.
+        2.  **Prevent Unnecessary Re-renders:** The agent's last idea was to use . This is the correct next step. The agent should wrap the exported modal components in  with  to prevent them from re-rendering if their props have not changed.
+        3.  **Implement :** Edit  and wrap each modal component export with . For example: .
+    - **Why fix this issue and what will be achieved with the fix?** This is a critical bug that makes a core part of the staff-facing functionality (requesting leave, swaps, etc.) completely unusable. Fixing it will restore essential functionality and user trust.
+    - **Status:** BLOCKED
+    - **Is recurring issue?** Y
+    - **Should Test frontend/backend/both after fix?** Frontend
+    - **Blocked on other issue:** None
 
 **In progress Task List**:
--   **Task 1 (P0):** Complete and test Phase 5A - Staff Management Enhancements.
-    -   **Where to resume:** The frontend component  has been created and integrated. The next step is to conduct functional testing of all its features (add, edit, archive, and actions).
-    -   **What will be achieved with this?** A fully operational staff management interface for managers.
-    -   **Status:** IN PROGRESS
-    -   **Should Test frontend/backend/both after fix?** Both
-    -   **Blocked on something:** None
+None. All tasks are blocked by the critical bug.
 
 **Upcoming and Future Tasks**
--   **Upcoming Tasks (P1):**
-    -   **Phase 5B: Kiosk & Offline Support:**
-        -   Rework the kiosk clock-in/out flow to be non-blocking with an optimistic UI to instantly allow the next staff member to scan, as requested by the user.
-        -   Implement auto-logout on idle and device identity management for kiosks.
-    -   **Phase 5C: Staff-facing Features:**
-        -   Build a unified interface for staff to submit various requests (leave, sick time, day off/on).
--   **Future Tasks (P2):**
-    -   **Planner Rule Implementation:** Implement the deferred business logic for the planner: warn managers when scheduling more than 2 consecutive workdays or violating the 11-hour rest gap rule.
-    -   **Offline Kiosk Functionality:** Implement local TOTP/PIN validation and event queueing for when the kiosk loses internet connectivity.
-    -   **Sick Leave Recording:** A dedicated feature for staff to record sick leave.
+None. All planned features from the PRD have been implemented. The focus is solely on fixing the critical form reset bug.
 
 **Completed work in this session**
--   **P0 Blocker: Frontend Compilation (DONE):** Fixed Maximum call stack size exceeded errors in  and other components, making the app build successfully.
--   **Feature: QR Code + PIN Authentication (DONE):** Built and stabilized the entire two-factor login flow, including a mobile QR generator page () and a kiosk scanning page ().
--   **Phase 4A: Monthly Staff Planner (DONE):** Created the  component with drag-and-drop, weekly/monthly hour totals, and detailed coverage rows.
--   **Phase 4B: Attendance & Compliance (DONE):** Built the  component with a day-detail dialog for manual adjustments and added Working Time Directive alerts.
--   **Phase 4C & 4D: Leave, Oversight & Notes (DONE):** Created and integrated  and  tabs for leave approvals, sickness tracking, staffing heatmaps, and manager notes.
+- **Phase 5A:** Staff Management CRUD (DONE)
+- **Phase 5B:** Kiosk Enhancements (Optimistic UI, Next Shift Display) & Offline Support (DONE)
+- **Phase 5C:** Unified Staff Request Center (DONE)
+- **Backlog Features:**
+    - Planner Validation Rules (verified existing implementation) (DONE)
+    - Agency/Bank Staff Tagging (verified existing implementation) (DONE)
+    - Sick Leave Recording Feature (DONE)
+    - Internal Message Notifications for requests (DONE)
+- **Bug Fix:** Removed Sick leave type from the annual leave request dropdown in  and . (DONE)
 
 **Earlier issues found/mentioned but not fixed**
--   **Issue 1:** The monthly planner is missing key validation rules requested by the user: a warning when a manager schedules a staff member for more than 2 consecutive days or violates the 11-hour rest gap between shifts.
-    -   **Debug checklist:** Add validation logic to the drag-and-drop  handler in . If a rule is violated, trigger a confirmation dialog before proceeding with the API call to save the shift.
-    -   **Why to solve this issue and what will be achieved with this?** To improve rota safety and compliance, preventing manager scheduling errors.
-    -   **Should Test frontend/backend/both after fix:** Frontend
-    -   **Is recurring issue?** N
+None. The current issue is a recurrence of a previously fixed issue.
 
 **Known issue recurrence from previous fork**
--   N/A
+- **Issue recurrence in previous fork:** The issue of forms resetting in modals was present, fixed, and then reappeared.
+- **Recurrence count:** 3
+- **Status:** BLOCKED
 
 **Code Architecture**
 
 
 **Key Technical Concepts**
--   **Frontend:** React,  (drag-and-drop),  (webcam QR scanning), , .
--   **Backend:** Python (Flask), MongoDB (),  (for TOTP tokens), .
--   **Architecture:** A monolithic application with a React SPA frontend communicating with a Flask REST API.
+- **Frontend:** React, React Hooks (, , ), .
+- **Backend:** FastAPI (Python).
+- **Styling:** Tailwind CSS.
+- **Problem Area:** React component lifecycle and state management, specifically concerning unnecessary re-renders caused by  in a child component affecting parent and sibling components.
 
 **key DB schema**
--   **Employee:** 
--   **Shift:** 
--   **Attendance:** 
--   **LeaveRequest:** 
--   **ManagerNote:** 
+No changes made to the DB schema in the last session.
 
 **changes in tech stack**
--   None.
+None.
 
 **All files of reference**
--   : **Newly Created.** Manages CRUD operations for staff.
--   : The central hub for manager features; heavily modified to integrate all new tabs.
--   : Contains the complex drag-and-drop rota.
--   : Displays the monthly attendance view.
--   : Handles the QR code scanning.
--   : Generates the dynamic QR codes.
--   : The main routes file, significantly expanded with new endpoints.
--   : All database models, updated to support new features.
+- : The parent component experiencing the re-render issue. It imports and renders the modals.
+- : The file containing the extracted modal components. **This is the primary file to modify by wrapping the components in .**
+- : The component suspected of causing the re-renders due to its 30-second polling interval.
+- : Another area where the Sick Leave type was correctly removed from the leave dropdown.
 
 **Areas that need refactoring**:
--    has grown very large and complex. It manages the state and visibility for numerous tabs, and could benefit from being broken down or using a more robust state management solution.
--   The recurring Maximum call stack size exceeded babel error suggests a pattern of deeply nested object access. A systematic refactor to flatten data structures upon retrieval from the API could improve build stability and performance.
+The state management around notifications could be improved to prevent polling from triggering widespread re-renders. However, the immediate fix should focus on using  to contain the problem.
 
 **key api endpoints**
--    (GET, POST): List and create staff.
--    (PUT, DELETE): Update and archive staff.
--    (POST): Reset a user's PIN.
--    (POST): Validate the QR code and TOTP token.
--    (POST): Validate the user's PIN.
--    (GET, POST): Fetch and update the monthly rota.
--    (GET): Get data for the attendance calendar.
--    (POST): Manually adjust an attendance record.
--    (GET, POST): Manage leave requests.
+No new API endpoints are required. The bug is purely on the frontend.
 
 **Critical Info for New Agent**
--   You are currently working on **Phase 5A**. The immediate next step is to test the newly created Staff Management tab.
--   The user has a critical requirement for **Phase 5B**: the kiosk clock-in/out process must be **instantaneous and non-blocking** to support queues of staff. This will require an optimistic UI implementation.
--   For PIN resets, the manager must be shown the new PIN in a dialog so they can provide it to the staff member.
--   Be aware of the potential for a Maximum call stack size exceeded build error when dealing with deeply nested data in React components. The standard fix is to extract nested properties into intermediate variables.
+The user is extremely frustrated as this is the third time they have reported the same bug. Previous fixes were not effective because they didn't address the root cause: frequent re-rendering of the  component. Your immediate priority is to solve this. The most likely cause is the  component, which polls for updates every 30 seconds. The most direct solution is to wrap the exported modal components in  with . This will prevent them from re-rendering unless their specific props change, effectively insulating them from the parent's re-render cycle. Do not get distracted by other potential causes until you have tried this fix.
 
 **documents and test reports created in this job**
--   : The Product Requirements Document, updated throughout the session.
+-  (updated to reflect completion of all phases)
+- Test reports from previous successful (but ultimately flawed) runs exist in .
 
 **Last 10 User Messages and any pending HUMAN messages**
-- The user provided detailed feedback on the plan for Phase 5, emphasizing the need for an instant/non-blocking kiosk UI for queues (5B), a unified request system for staff (5C), and a specific PIN reset flow where the manager sees the PIN. The agent acknowledged these points and proceeded with Phase 5A. There are no pending messages from the user; the ball is in the agent's court to test and complete Phase 5A.
+1.  (PENDING - User is reporting the bug again, very frustrated)
+2.  (PENDING - User reported the bug after the second attempted fix)
+3.  (PENDING - User reported the bug after the first attempted fix)
+4.  (Completed)
+5.  (Completed - Agent provided a summary)
+6.  (Completed)
+7.  (Completed - Agent provided an explanation)
+8.  (Completed)
+9.  (Completed)
+10.  (Completed - User provided feature enhancements)
 
 **Project Health Check:**
--   **Broken:** None.
--   **Mocked:** The planner's rota validation rules (max consecutive days, min rest gap) are not implemented. The UI exists, but the underlying business logic is missing.
+- **Broken:** The core staff request functionality via modals on the Staff Profile page is broken due to the form reset bug.
 
 **3rd Party Integrations**
--   None.
+- None explicitly mentioned or added.
 
 **Testing status**
--   **Testing agent used after significant changes:** YES
--   **Troubleshoot agent used after agent stuck in loop:** NO
--   **Test files created:** Yes, by the testing agent, but paths are not persisted.
--   **Known regressions:** None.
+- **Testing agent used after significant changes:** YES
+- **Troubleshoot agent used after agent stuck in loop:** NO
+- **Test files created:**
+    - 
+    - 
+- **Known regressions:** The form reset bug is a major regression.
 
 **Credentials to test flow:**
-| Employee ID | Name            | Role    | PIN  |
-|-------------|-----------------|---------|------|
-| ADM001      | Sarah Wilson    | Admin   | 1234 |
-| MGR001      | Michael O'Brien | Manager | 1234 |
-| NRS001      | Emma Thompson   | Staff   | 1234 |
+The application uses a QR code + PIN system. The database is seeded with demo users. Manager PIN is .
 
 **What agent forgot to execute**
--   The agent did not implement two of the user's original requirements for the monthly planner (Phase 4A):
-    1.  Validation rules to warn managers when scheduling violates the max 2 consecutive days or min 11-hour rest gap policies.
-    2.  The ability to tag staff as agency or bank staff.</analysis>
+The agent failed to properly test and verify its previous fixes for the form reset bug. It confirmed that the modal opened but did not confirm that the form fields were actually usable and persisted state, which led to multiple failed attempts and user frustration.</analysis>

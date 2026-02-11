@@ -9,7 +9,7 @@ from datetime import datetime
 
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 if not BASE_URL:
-    BASE_URL = "https://staff-mgmt-phase5a.preview.emergentagent.com"
+    BASE_URL = "https://react-memo-modal-fix.preview.emergentagent.com"
 API_URL = f"{BASE_URL}/api"
 
 
