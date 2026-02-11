@@ -322,8 +322,43 @@ const KioskClockScreen = () => {
     }
   };
 
-  const handleClockIn = async () => {
+  // Check if clock-in is late or early
+  const checkLateEarly = () => {
+    if (!shiftInfo?.scheduled_shift || !lateEarlyPrefs) return null;
+    
+    const now = new Date();
+    const shiftStart = new Date(shiftInfo.scheduled_shift.start_time);
+    const diffMinutes = (now - shiftStart) / (1000 * 60);
+    
+    // Late: current time > shift start + grace period
+    if (diffMinutes > (lateEarlyPrefs.late_grace_minutes || 5)) {
+      if (lateEarlyPrefs.enable_late_reason) {
+        return { type: 'late', shiftStart };
+      }
+    }
+    
+    // Early: current time < shift start - grace period  
+    if (diffMinutes < -(lateEarlyPrefs.early_grace_minutes || 15)) {
+      if (lateEarlyPrefs.enable_early_reason) {
+        return { type: 'early', shiftStart };
+      }
+    }
+    
+    return null;
+  };
+
+  const handleClockIn = async (lateEarlyReason = null) => {
     if (actionInProgressRef.current) return;
+    
+    // Check late/early status and show dialog if needed
+    if (!lateEarlyReason && !lateEarlyDialog) {
+      const lateEarlyStatus = checkLateEarly();
+      if (lateEarlyStatus) {
+        setLateEarlyDialog(lateEarlyStatus);
+        return;
+      }
+    }
+    
     actionInProgressRef.current = true;
     
     // Optimistic UI - immediately show clocked in
@@ -333,7 +368,8 @@ const KioskClockScreen = () => {
     try {
       const response = await axios.post(`${API}/attendance/clock`, {
         employee_id: user.employee_id,
-        action: 'clock_in'
+        action: 'clock_in',
+        late_early_reason: lateEarlyReason
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -348,6 +384,7 @@ const KioskClockScreen = () => {
         await fetchData();
       }
       setOptimisticAction(null);
+      setLateEarlyDialog(null);
     } catch (err) {
       console.error('Clock in failed:', err);
       // Revert optimistic update
@@ -358,6 +395,23 @@ const KioskClockScreen = () => {
     } finally {
       setActionLoading(false);
       actionInProgressRef.current = false;
+    }
+  };
+
+  const handleLateEarlySubmit = (reason) => {
+    setLateEarlyDialog(null);
+    handleClockIn(reason);
+  };
+
+  const handleLateEarlyCancel = () => {
+    setLateEarlyDialog(null);
+    // If mandatory, don't proceed with clock-in
+    const isMandatory = lateEarlyDialog?.type === 'late' 
+      ? lateEarlyPrefs?.late_reason_mandatory 
+      : lateEarlyPrefs?.early_reason_mandatory;
+    
+    if (!isMandatory) {
+      handleClockIn('');
     }
   };
 
@@ -374,8 +428,7 @@ const KioskClockScreen = () => {
         employee_id: user.employee_id,
         action: 'clock_out'
       }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+        headers: { Authorization: `Bearer ${token}` });
       
       // Set clock-out success data
       const timestamp = response.data?.timestamp || new Date().toISOString();
