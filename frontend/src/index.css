@@ -48,45 +48,47 @@
   --radius: 0.5rem;
 }
 
-/* Dark Mode Variables */
+/* Dark Mode Variables - Modern Grayscale Palette */
 .dark {
-  --frappe-bg: #0F172A;
-  --frappe-surface: #1E293B;
-  --frappe-primary: #3B82F6;
-  --frappe-primary-hover: #60A5FA;
-  --frappe-primary-light: #1E3A5F;
-  --frappe-secondary: #94A3B8;
-  --frappe-border: #334155;
-  --frappe-text-dark: #F1F5F9;
-  --frappe-text-medium: #CBD5E1;
-  --frappe-text-light: #94A3B8;
-  --frappe-success: #10B981;
-  --frappe-success-light: #064E3B;
-  --frappe-warning: #F59E0B;
-  --frappe-warning-light: #78350F;
-  --frappe-error: #EF4444;
-  --frappe-error-light: #7F1D1D;
+  /* New color palette based on user preference */
+  --frappe-bg: #2C2C2C;           /* Main background - darkest */
+  --frappe-surface: #454545;      /* Cards, surfaces */
+  --frappe-surface-elevated: #5B5B5B;  /* Elevated surfaces, hover states */
+  --frappe-primary: #60A5FA;      /* Primary blue - slightly brighter for visibility */
+  --frappe-primary-hover: #93C5FD;
+  --frappe-primary-light: #3B5B5B;
+  --frappe-secondary: #ADADAD;    /* Secondary text */
+  --frappe-border: #5B5B5B;       /* Borders */
+  --frappe-text-dark: #F5F5F5;    /* Primary text - lightest */
+  --frappe-text-medium: #DCDCDC;  /* Secondary text */
+  --frappe-text-light: #ADADAD;   /* Muted text */
+  --frappe-success: #34D399;
+  --frappe-success-light: #454545;
+  --frappe-warning: #FBBF24;
+  --frappe-warning-light: #5B5B5B;
+  --frappe-error: #F87171;
+  --frappe-error-light: #5B5B5B;
   
-  /* Shadcn UI dark mode */
-  --background: 222.2 84% 4.9%;
-  --foreground: 210 40% 98%;
-  --card: 222.2 84% 4.9%;
-  --card-foreground: 210 40% 98%;
-  --popover: 222.2 84% 4.9%;
-  --popover-foreground: 210 40% 98%;
-  --primary: 217.2 91.2% 59.8%;
-  --primary-foreground: 222.2 47.4% 11.2%;
-  --secondary: 217.2 32.6% 17.5%;
-  --secondary-foreground: 210 40% 98%;
-  --muted: 217.2 32.6% 17.5%;
-  --muted-foreground: 215 20.2% 65.1%;
-  --accent: 217.2 32.6% 17.5%;
-  --accent-foreground: 210 40% 98%;
-  --destructive: 0 62.8% 30.6%;
-  --destructive-foreground: 210 40% 98%;
-  --border: 217.2 32.6% 17.5%;
-  --input: 217.2 32.6% 17.5%;
-  --ring: 224.3 76.3% 48%;
+  /* Shadcn UI dark mode - updated to match palette */
+  --background: 0 0% 17%;         /* #2C2C2C */
+  --foreground: 0 0% 96%;         /* #F5F5F5 */
+  --card: 0 0% 27%;               /* #454545 */
+  --card-foreground: 0 0% 96%;    /* #F5F5F5 */
+  --popover: 0 0% 27%;            /* #454545 */
+  --popover-foreground: 0 0% 96%;
+  --primary: 213 94% 68%;         /* Blue accent */
+  --primary-foreground: 0 0% 17%;
+  --secondary: 0 0% 36%;          /* #5B5B5B */
+  --secondary-foreground: 0 0% 96%;
+  --muted: 0 0% 36%;              /* #5B5B5B */
+  --muted-foreground: 0 0% 68%;   /* #ADADAD */
+  --accent: 0 0% 36%;             /* #5B5B5B */
+  --accent-foreground: 0 0% 96%;
+  --destructive: 0 72% 70%;
+  --destructive-foreground: 0 0% 96%;
+  --border: 0 0% 36%;             /* #5B5B5B */
+  --input: 0 0% 36%;
+  --ring: 213 94% 68%;
 }
 
 * {
