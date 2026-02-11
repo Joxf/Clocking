@@ -136,6 +136,14 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/manager/late-arrivals"
+          element={
+            <ProtectedRoute allowedRoles={['manager', 'admin']}>
+              <LateArrivalsReport />
+            </ProtectedRoute>
+          }
+        />
         
         {/* Catch all - redirect to scan login */}
         <Route path="*" element={<Navigate to="/" replace />} />
