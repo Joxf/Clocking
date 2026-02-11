@@ -347,7 +347,7 @@ const KioskClockScreen = () => {
     return null;
   };
 
-  const handleClockIn = async (lateEarlyReason = null) => {
+  const handleClockIn = async (lateEarlyReason = null, lateEarlyType = null) => {
     if (actionInProgressRef.current) return;
     
     // Check late/early status and show dialog if needed
@@ -369,7 +369,8 @@ const KioskClockScreen = () => {
       const response = await axios.post(`${API}/attendance/clock`, {
         employee_id: user.employee_id,
         action: 'clock_in',
-        late_early_reason: lateEarlyReason
+        late_early_reason: lateEarlyReason,
+        late_early_type: lateEarlyType
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -399,8 +400,9 @@ const KioskClockScreen = () => {
   };
 
   const handleLateEarlySubmit = (reason) => {
+    const type = lateEarlyDialog?.type;
     setLateEarlyDialog(null);
-    handleClockIn(reason);
+    handleClockIn(reason, type);
   };
 
   const handleLateEarlyCancel = () => {
