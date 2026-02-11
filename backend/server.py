@@ -104,6 +104,8 @@ class AttendanceRecord(BaseModel):
     clock_in: Optional[datetime] = None
     clock_out: Optional[datetime] = None
     status: str = "present"  # present, late, early_leave, absent
+    late_early_reason: Optional[str] = None  # Reason for late/early clock-in
+    late_early_type: Optional[str] = None  # 'late' or 'early'
     notes: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
