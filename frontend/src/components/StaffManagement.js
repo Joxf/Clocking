@@ -16,6 +16,28 @@ const JOB_OPTIONS = [
   { value: 'maintenance', label: 'Maintenance' },
 ];
 
+const SHIFT_PREFERENCE_OPTIONS = [
+  { value: 'flexible', label: 'Flexible (Any Shift)' },
+  { value: 'earlies_only', label: 'Earlies Only' },
+  { value: 'lates_only', label: 'Lates Only' },
+  { value: 'nights_only', label: 'Nights Only' },
+  { value: 'no_nights', label: 'No Nights' },
+  { value: 'weekdays_only', label: 'Weekdays Only' },
+  { value: 'weekends_only', label: 'Weekends Only' },
+  { value: 'long_days', label: 'Long Days Preferred' },
+];
+
+const PREFERENCE_BADGE = {
+  flexible: 'bg-gray-100 text-gray-700',
+  earlies_only: 'bg-yellow-100 text-yellow-700',
+  lates_only: 'bg-orange-100 text-orange-700',
+  nights_only: 'bg-indigo-100 text-indigo-700',
+  no_nights: 'bg-blue-100 text-blue-700',
+  weekdays_only: 'bg-green-100 text-green-700',
+  weekends_only: 'bg-purple-100 text-purple-700',
+  long_days: 'bg-pink-100 text-pink-700',
+};
+
 const JOB_BADGE = {
   nurse: 'bg-blue-100 text-blue-700',
   senior_carer: 'bg-purple-100 text-purple-700',
