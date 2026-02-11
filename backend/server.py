@@ -1902,7 +1902,213 @@ async def mark_return_to_work(record_id: str, return_date: str = None, notes: st
         }}
     )
     
-    return {"success": True}
+    # Create RTW form when return date is set
+    rtw = ReturnToWork(
+        care_home_id=record["care_home_id"],
+        employee_id=record["employee_id"],
+        employee_name=record.get("employee_name", "Staff Member"),
+        sick_leave_id=record_id,
+        return_date=actual_return,
+        due_date=actual_return
+    )
+    await db.rtw_forms.insert_one(serialize_datetime(rtw.model_dump()))
+    
+    return {"success": True, "rtw_id": rtw.id}
+
+# ============ RETURN TO WORK (RTW) ENDPOINTS ============
+
+class RTWManagerUpdate(BaseModel):
+    fit_to_return: bool
+    absence_discussed: bool
+    affects_safe_working: bool
+    adjustments_needed: bool
+    adjustment_types: List[str] = []
+    occupational_health: bool
+    work_related: bool
+    incident_followup: bool = False
+    followup_required: bool
+    followup_timeframe: Optional[str] = None
+
+class RTWStaffUpdate(BaseModel):
+    fit_to_return: bool
+    fully_recovered: bool
+    ongoing_symptoms: bool
+    feels_safe: bool
+    needs_adjustments: bool
+    adjustment_types: List[str] = []
+    understands_reporting: bool
+    agrees_outcome: bool
+
+@api_router.get("/rtw")
+async def get_rtw_forms(
+    status: Optional[str] = None,
+    employee_id: Optional[str] = None,
+    current_user: dict = Depends(get_current_user)
+):
+    """Get RTW forms - filtered by status or employee"""
+    query = {"care_home_id": current_user["care_home_id"]}
+    
+    if status:
+        query["status"] = status
+    if employee_id:
+        query["employee_id"] = employee_id
+    
+    # Staff can only see their own
+    if current_user["role"] not in ["manager", "admin"]:
+        query["employee_id"] = current_user["id"]
+    
+    forms = await db.rtw_forms.find(query, {"_id": 0}).sort("created_at", -1).to_list(100)
+    
+    # Check for overdue forms and update status
+    today = datetime.now(timezone.utc).date().isoformat()
+    for form in forms:
+        if form["status"] == "pending" and form["due_date"] < today:
+            await db.rtw_forms.update_one(
+                {"id": form["id"]},
+                {"$set": {"status": "overdue"}}
+            )
+            form["status"] = "overdue"
+    
+    return {"rtw_forms": forms}
+
+@api_router.get("/rtw/pending-count")
+async def get_rtw_pending_count(current_user: dict = Depends(get_current_user)):
+    """Get count of pending/overdue RTW forms for dashboard"""
+    if current_user["role"] not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Managers only")
+    
+    today = datetime.now(timezone.utc).date().isoformat()
+    
+    pending = await db.rtw_forms.count_documents({
+        "care_home_id": current_user["care_home_id"],
+        "status": {"$in": ["pending", "in_progress"]}
+    })
+    
+    overdue = await db.rtw_forms.count_documents({
+        "care_home_id": current_user["care_home_id"],
+        "status": "pending",
+        "due_date": {"$lt": today}
+    })
+    
+    return {"pending": pending, "overdue": overdue, "total": pending}
+
+@api_router.get("/rtw/my-pending")
+async def get_my_pending_rtw(current_user: dict = Depends(get_current_user)):
+    """Get pending RTW forms for current user"""
+    forms = await db.rtw_forms.find({
+        "employee_id": current_user["id"],
+        "status": {"$in": ["pending", "in_progress", "overdue"]}
+    }, {"_id": 0}).to_list(10)
+    
+    return {"rtw_forms": forms}
+
+@api_router.get("/rtw/{rtw_id}")
+async def get_rtw_form(rtw_id: str, current_user: dict = Depends(get_current_user)):
+    """Get a specific RTW form"""
+    form = await db.rtw_forms.find_one({"id": rtw_id}, {"_id": 0})
+    if not form:
+        raise HTTPException(status_code=404, detail="RTW form not found")
+    
+    # Staff can only view their own
+    if current_user["role"] not in ["manager", "admin"] and form["employee_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="Access denied")
+    
+    # Get linked sick leave record
+    sick_leave = await db.sick_leave.find_one({"id": form["sick_leave_id"]}, {"_id": 0})
+    
+    return {"rtw_form": form, "sick_leave": sick_leave}
+
+@api_router.put("/rtw/{rtw_id}/manager")
+async def update_rtw_manager_section(
+    rtw_id: str,
+    data: RTWManagerUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Manager completes their section of the RTW form"""
+    if current_user["role"] not in ["manager", "admin"]:
+        raise HTTPException(status_code=403, detail="Managers only")
+    
+    form = await db.rtw_forms.find_one({"id": rtw_id}, {"_id": 0})
+    if not form:
+        raise HTTPException(status_code=404, detail="RTW form not found")
+    
+    # Determine new status
+    new_status = "in_progress"
+    if form.get("staff_completed"):
+        new_status = "completed"
+    
+    await db.rtw_forms.update_one(
+        {"id": rtw_id},
+        {"$set": {
+            "manager_completed": True,
+            "manager_completed_by": current_user["id"],
+            "manager_completed_at": datetime.now(timezone.utc),
+            "mgr_fit_to_return": data.fit_to_return,
+            "mgr_absence_discussed": data.absence_discussed,
+            "mgr_affects_safe_working": data.affects_safe_working,
+            "mgr_adjustments_needed": data.adjustments_needed,
+            "mgr_adjustment_types": data.adjustment_types,
+            "mgr_occupational_health": data.occupational_health,
+            "mgr_work_related": data.work_related,
+            "mgr_incident_followup": data.incident_followup,
+            "mgr_followup_required": data.followup_required,
+            "mgr_followup_timeframe": data.followup_timeframe,
+            "status": new_status,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    return {"success": True, "status": new_status}
+
+@api_router.put("/rtw/{rtw_id}/staff")
+async def update_rtw_staff_section(
+    rtw_id: str,
+    data: RTWStaffUpdate,
+    current_user: dict = Depends(get_current_user)
+):
+    """Staff member completes their section of the RTW form"""
+    form = await db.rtw_forms.find_one({"id": rtw_id}, {"_id": 0})
+    if not form:
+        raise HTTPException(status_code=404, detail="RTW form not found")
+    
+    # Staff can only complete their own form
+    if form["employee_id"] != current_user["id"]:
+        raise HTTPException(status_code=403, detail="You can only complete your own RTW form")
+    
+    # Determine new status
+    new_status = "in_progress"
+    if form.get("manager_completed"):
+        new_status = "completed"
+    
+    await db.rtw_forms.update_one(
+        {"id": rtw_id},
+        {"$set": {
+            "staff_completed": True,
+            "staff_completed_at": datetime.now(timezone.utc),
+            "staff_fit_to_return": data.fit_to_return,
+            "staff_fully_recovered": data.fully_recovered,
+            "staff_ongoing_symptoms": data.ongoing_symptoms,
+            "staff_feels_safe": data.feels_safe,
+            "staff_needs_adjustments": data.needs_adjustments,
+            "staff_adjustment_types": data.adjustment_types,
+            "staff_understands_reporting": data.understands_reporting,
+            "staff_agrees_outcome": data.agrees_outcome,
+            "status": new_status,
+            "updated_at": datetime.now(timezone.utc)
+        }}
+    )
+    
+    return {"success": True, "status": new_status}
+
+@api_router.get("/staff/{employee_id}/rtw-status")
+async def get_staff_rtw_status(employee_id: str, current_user: dict = Depends(get_current_user)):
+    """Get RTW status for a specific staff member - for triggers"""
+    pending_rtw = await db.rtw_forms.find_one({
+        "employee_id": employee_id,
+        "status": {"$in": ["pending", "in_progress", "overdue"]}
+    }, {"_id": 0})
+    
+    return {"has_pending_rtw": pending_rtw is not None, "rtw_form": pending_rtw}
 
 @api_router.get("/leave-requests")
 async def get_leave_requests(current_user: dict = Depends(get_current_user)):
