@@ -1,4 +1,4 @@
-import React, { useState, memo, useRef, useEffect } from 'react';
+import React, { useState, memo } from 'react';
 import axios from 'axios';
 import {
   Users,
