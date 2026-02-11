@@ -4,7 +4,8 @@ import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import {
   ChevronLeft, ChevronRight, Users, Clock, AlertTriangle,
-  Plus, X, GripVertical, Filter, Eye, EyeOff, BarChart3, ArrowLeft
+  Plus, X, GripVertical, Filter, Eye, EyeOff, BarChart3, ArrowLeft,
+  Settings, Shield, Info
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
@@ -24,6 +25,19 @@ const JOB_LABELS = {
   care_manager: 'Manager', administrator: 'Admin',
 };
 
+// Rule status indicator component
+const RuleStatusBadge = ({ mode, label }) => {
+  if (mode === 'disabled') return null;
+  const styles = mode === 'hard' 
+    ? 'bg-red-100 text-red-700 border-red-200' 
+    : 'bg-yellow-100 text-yellow-700 border-yellow-200';
+  return (
+    <span className={`px-1.5 py-0.5 text-[9px] rounded border ${styles}`} title={`${label}: ${mode === 'hard' ? 'Hard Block' : 'Soft Warning'}`}>
+      {mode === 'hard' ? 'H' : 'S'}
+    </span>
+  );
+};
+
 const StaffPlanner = () => {
   const { token } = useAuth();
   const navigate = useNavigate();
@@ -33,10 +47,12 @@ const StaffPlanner = () => {
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth() + 1);
   const [plannerData, setPlannerData] = useState(null);
+  const [controlPrefs, setControlPrefs] = useState(null);
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState('on_duty'); // on_duty, off_duty
   const [filterRole, setFilterRole] = useState('all');
   const [showOvertimePanel, setShowOvertimePanel] = useState(false);
+  const [showRulesPanel, setShowRulesPanel] = useState(false);
   const [warningModal, setWarningModal] = useState(null);
   const [selectedTemplate, setSelectedTemplate] = useState('early');
   const [dragData, setDragData] = useState(null);
@@ -46,8 +62,12 @@ const StaffPlanner = () => {
   const fetchPlanner = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await axios.get(`${API}/planner/monthly?year=${year}&month=${month}`, { headers });
-      setPlannerData(res.data);
+      const [plannerRes, prefsRes] = await Promise.all([
+        axios.get(`${API}/planner/monthly?year=${year}&month=${month}`, { headers }),
+        axios.get(`${API}/control-preferences`, { headers })
+      ]);
+      setPlannerData(plannerRes.data);
+      setControlPrefs(prefsRes.data.preferences);
     } catch (err) {
       console.error('Failed to fetch planner:', err);
     } finally {
