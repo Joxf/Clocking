@@ -271,6 +271,8 @@ class SetPINRequest(BaseModel):
 class ClockActionRequest(BaseModel):
     employee_id: str
     action: str  # clock_in, clock_out
+    late_early_reason: Optional[str] = None  # Reason for late/early clock-in
+    late_early_type: Optional[str] = None  # 'late' or 'early'
 
 class OfflineSyncRequest(BaseModel):
     events: List[dict]
