@@ -16,8 +16,11 @@ import {
   ArrowRight,
   ChevronRight,
   CloudOff,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle,
+  MessageSquare
 } from 'lucide-react';
+import ThemeToggle from '../components/ThemeToggle';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
@@ -26,6 +29,113 @@ const API = `${BACKEND_URL}/api`;
 const IDLE_TIMEOUT = 60;
 // Auto-dismiss success screen after seconds
 const SUCCESS_SCREEN_TIMEOUT = 8;
+
+// Late/Early Reason Dialog Component
+const LateEarlyReasonDialog = ({ type, reasons, onSubmit, onCancel, isMandatory, enableFreeText }) => {
+  const [selectedReason, setSelectedReason] = useState('');
+  const [freeTextReason, setFreeTextReason] = useState('');
+  const [useFreeText, setUseFreeText] = useState(false);
+
+  const isLate = type === 'late';
+  const title = isLate ? 'You are clocking in late' : 'You are clocking in early';
+  const subtitle = isLate 
+    ? 'Please select a reason for your late arrival'
+    : 'Please select a reason for your early arrival';
+  const bgColor = isLate ? 'bg-red-50 dark:bg-red-900/20' : 'bg-blue-50 dark:bg-blue-900/20';
+  const borderColor = isLate ? 'border-red-200 dark:border-red-800' : 'border-blue-200 dark:border-blue-800';
+  const iconColor = isLate ? 'text-red-500' : 'text-blue-500';
+
+  const handleSubmit = () => {
+    const reason = useFreeText ? freeTextReason : selectedReason;
+    if (isMandatory && !reason) return;
+    onSubmit(reason);
+  };
+
+  const activeReasons = (reasons || []).filter(r => r.is_active);
+
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+      <div className={`w-full max-w-md ${bgColor} ${borderColor} border-2 rounded-2xl shadow-xl`}>
+        {/* Header */}
+        <div className="p-6 text-center border-b border-gray-200 dark:border-slate-700">
+          <div className={`w-16 h-16 mx-auto rounded-full ${isLate ? 'bg-red-100 dark:bg-red-900/40' : 'bg-blue-100 dark:bg-blue-900/40'} flex items-center justify-center mb-4`}>
+            <AlertTriangle size={32} className={iconColor} />
+          </div>
+          <h2 className="text-xl font-bold text-gray-900 dark:text-white">{title}</h2>
+          <p className="text-sm text-gray-600 dark:text-slate-400 mt-2">{subtitle}</p>
+        </div>
+
+        {/* Reason Selection */}
+        <div className="p-4 max-h-64 overflow-y-auto">
+          <div className="space-y-2">
+            {activeReasons.map((reason) => (
+              <button
+                key={reason.id}
+                onClick={() => { setSelectedReason(reason.reason_text); setUseFreeText(false); }}
+                className={`w-full p-3 text-left rounded-lg border transition-all ${
+                  selectedReason === reason.reason_text && !useFreeText
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                    : 'border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-700 dark:text-slate-200 hover:border-gray-300'
+                }`}
+              >
+                {reason.reason_text}
+              </button>
+            ))}
+            
+            {enableFreeText && (
+              <button
+                onClick={() => { setUseFreeText(true); setSelectedReason(''); }}
+                className={`w-full p-3 text-left rounded-lg border transition-all ${
+                  useFreeText
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300'
+                    : 'border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-gray-700 dark:text-slate-200 hover:border-gray-300'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <MessageSquare size={16} />
+                  <span>Other (type your reason)</span>
+                </div>
+              </button>
+            )}
+          </div>
+
+          {useFreeText && (
+            <textarea
+              value={freeTextReason}
+              onChange={(e) => setFreeTextReason(e.target.value)}
+              placeholder="Please describe your reason..."
+              className="w-full mt-3 p-3 border border-gray-200 dark:border-slate-600 rounded-lg text-sm bg-white dark:bg-slate-700 text-gray-700 dark:text-slate-200 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              rows={3}
+            />
+          )}
+        </div>
+
+        {/* Actions */}
+        <div className="p-4 border-t border-gray-200 dark:border-slate-700 flex gap-3">
+          {!isMandatory && (
+            <button
+              onClick={onCancel}
+              className="flex-1 py-3 px-4 bg-gray-100 dark:bg-slate-600 text-gray-700 dark:text-slate-200 rounded-xl font-medium hover:bg-gray-200 dark:hover:bg-slate-500 transition-colors"
+            >
+              Skip
+            </button>
+          )}
+          <button
+            onClick={handleSubmit}
+            disabled={isMandatory && !selectedReason && !freeTextReason}
+            className={`flex-1 py-3 px-4 rounded-xl font-medium transition-colors ${
+              isMandatory && !selectedReason && !freeTextReason
+                ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                : 'bg-blue-600 text-white hover:bg-blue-700'
+            }`}
+          >
+            {isMandatory ? 'Submit & Clock In' : 'Submit'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 const KioskClockScreen = () => {
   const navigate = useNavigate();
@@ -37,7 +147,8 @@ const KioskClockScreen = () => {
     isOnline, 
     offlineQueue, 
     syncOfflineQueue,
-    lastSyncStatus 
+    lastSyncStatus,
+    loginPreferences
   } = useAuth();
   
   const [attendanceStatus, setAttendanceStatus] = useState(null);
@@ -54,6 +165,10 @@ const KioskClockScreen = () => {
   const [nextShift, setNextShift] = useState(null);
   const [successCountdown, setSuccessCountdown] = useState(SUCCESS_SCREEN_TIMEOUT);
   
+  // Late/Early reason dialog state
+  const [lateEarlyDialog, setLateEarlyDialog] = useState(null); // { type: 'late'|'early', shiftStart }
+  const [lateEarlyPrefs, setLateEarlyPrefs] = useState(null);
+  
   // Optimistic UI state
   const [optimisticAction, setOptimisticAction] = useState(null);
   const [offlineClockAction, setOfflineClockAction] = useState(null);
@@ -61,6 +176,50 @@ const KioskClockScreen = () => {
 
   // Count unsynced events
   const unsyncedCount = offlineQueue.filter(e => !e.synced).length;
+
+  // Fetch late/early preferences
+  useEffect(() => {
+    const fetchLateEarlyPrefs = async () => {
+      try {
+        const response = await axios.get(`${API}/control-preferences/policies`, {
+          headers: { Authorization: `Bearer ${token}` }
+        });
+        // The policies endpoint doesn't include late/early, so we'll use the loginPreferences from context
+        // or fetch full prefs if available
+      } catch (err) {
+        console.log('Using default late/early preferences');
+      }
+    };
+    
+    // Use loginPreferences from AuthContext if available
+    if (loginPreferences?.late_early) {
+      setLateEarlyPrefs(loginPreferences.late_early);
+    } else {
+      // Set defaults
+      setLateEarlyPrefs({
+        enable_late_reason: true,
+        enable_early_reason: true,
+        late_grace_minutes: 5,
+        early_grace_minutes: 15,
+        late_reason_mandatory: true,
+        early_reason_mandatory: false,
+        enable_free_text: false,
+        late_reasons: [
+          { id: '1', reason_text: 'Traffic/Transport issues', is_active: true },
+          { id: '2', reason_text: 'Childcare issues', is_active: true },
+          { id: '3', reason_text: 'Medical appointment', is_active: true },
+          { id: '4', reason_text: 'Family emergency', is_active: true },
+          { id: '5', reason_text: 'Weather conditions', is_active: true }
+        ],
+        early_reasons: [
+          { id: '6', reason_text: 'Cover for colleague', is_active: true },
+          { id: '7', reason_text: 'Early handover', is_active: true },
+          { id: '8', reason_text: 'Training', is_active: true },
+          { id: '9', reason_text: 'Meeting', is_active: true }
+        ]
+      });
+    }
+  }, [loginPreferences, token]);
 
   const fetchData = useCallback(async () => {
     // If offline, use cached data
