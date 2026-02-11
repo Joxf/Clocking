@@ -18,10 +18,15 @@ import {
   RefreshCw,
   ChevronDown,
   ChevronUp,
-  Info
+  Info,
+  LogIn,
+  ClipboardList,
+  CalendarDays
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+// ============ SHARED COMPONENTS ============
 
 // Rule Mode Selector Component
 const RuleModeSelector = ({ value, onChange, label }) => {
@@ -121,108 +126,26 @@ const StaffingEditor = ({ label, data, onChange }) => {
     <div className="p-4 bg-gray-50 rounded-lg space-y-3">
       <h4 className="font-medium text-gray-700 text-sm">{label}</h4>
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <NumberInput label="Min Total" value={data.min_total} onChange={(v) => update('min_total', v)} />
-        <NumberInput label="Min Nurses" value={data.min_nurses} onChange={(v) => update('min_nurses', v)} />
-        <NumberInput label="Min Sr. Carers" value={data.min_senior_carers} onChange={(v) => update('min_senior_carers', v)} />
-        <NumberInput label="Min Carers" value={data.min_carers} onChange={(v) => update('min_carers', v)} />
-        <NumberInput label="Activities" value={data.min_activities} onChange={(v) => update('min_activities', v)} />
-        <NumberInput label="Kitchen" value={data.min_kitchen} onChange={(v) => update('min_kitchen', v)} />
-        <NumberInput label="Domestic" value={data.min_domestic} onChange={(v) => update('min_domestic', v)} />
+        <NumberInput label="Min Total" value={data?.min_total || 0} onChange={(v) => update('min_total', v)} />
+        <NumberInput label="Min Nurses" value={data?.min_nurses || 0} onChange={(v) => update('min_nurses', v)} />
+        <NumberInput label="Min Sr. Carers" value={data?.min_senior_carers || 0} onChange={(v) => update('min_senior_carers', v)} />
+        <NumberInput label="Min Carers" value={data?.min_carers || 0} onChange={(v) => update('min_carers', v)} />
+        <NumberInput label="Activities" value={data?.min_activities || 0} onChange={(v) => update('min_activities', v)} />
+        <NumberInput label="Kitchen" value={data?.min_kitchen || 0} onChange={(v) => update('min_kitchen', v)} />
+        <NumberInput label="Domestic" value={data?.min_domestic || 0} onChange={(v) => update('min_domestic', v)} />
       </div>
     </div>
   );
 };
 
-// Main Control Preferences Page
-const ControlPreferences = () => {
-  const { token } = useAuth();
-  const [prefs, setPrefs] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+// ============ TAB PANELS ============
 
-  const headers = { Authorization: `Bearer ${token}` };
-
-  const fetchPreferences = useCallback(async () => {
-    try {
-      const res = await axios.get(`${API}/control-preferences`, { headers });
-      setPrefs(res.data.preferences);
-    } catch (err) {
-      console.error('Failed to fetch preferences:', err);
-    } finally {
-      setLoading(false);
-    }
-  }, [token]);
-
-  useEffect(() => {
-    fetchPreferences();
-  }, [fetchPreferences]);
-
-  const savePreferences = async () => {
-    setSaving(true);
-    try {
-      await axios.put(`${API}/control-preferences`, prefs, { headers });
-      setSaved(true);
-      setTimeout(() => setSaved(false), 3000);
-    } catch (err) {
-      alert('Failed to save preferences');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const updateNested = (path, value) => {
-    setPrefs(prev => {
-      const newPrefs = { ...prev };
-      const keys = path.split('.');
-      let obj = newPrefs;
-      for (let i = 0; i < keys.length - 1; i++) {
-        obj[keys[i]] = { ...obj[keys[i]] };
-        obj = obj[keys[i]];
-      }
-      obj[keys[keys.length - 1]] = value;
-      return newPrefs;
-    });
-  };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <RefreshCw size={24} className="animate-spin text-blue-500" />
-      </div>
-    );
-  }
-
-  if (!prefs) {
-    return (
-      <div className="text-center py-12 text-gray-500">
-        Failed to load preferences
-      </div>
-    );
-  }
+// SHIFT PLANNER TAB
+const ShiftPlannerTab = ({ prefs, updateNested }) => {
+  if (!prefs) return null;
 
   return (
-    <div className="max-w-4xl mx-auto space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Control Preferences</h1>
-          <p className="text-sm text-gray-500">Configure operational rules for the Shift Planner</p>
-        </div>
-        <button
-          onClick={savePreferences}
-          disabled={saving}
-          className={`px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 transition-all ${
-            saved 
-              ? 'bg-green-500 text-white' 
-              : 'bg-blue-600 text-white hover:bg-blue-700'
-          } disabled:opacity-50`}
-        >
-          {saving ? <RefreshCw size={18} className="animate-spin" /> : saved ? <CheckCircle size={18} /> : <Save size={18} />}
-          {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Changes'}
-        </button>
-      </div>
-
+    <div className="space-y-6">
       {/* Info Banner */}
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-start gap-3">
         <Info size={20} className="text-blue-500 flex-shrink-0 mt-0.5" />
@@ -350,40 +273,6 @@ const ControlPreferences = () => {
         </div>
       </Section>
 
-      {/* Leave Validation */}
-      <Section title="Leave & Availability Validation" icon={FileText}>
-        <div className="space-y-4">
-          <div className="p-4 bg-gray-50 rounded-lg space-y-3">
-            <h4 className="font-medium text-gray-700 text-sm">Annual Leave</h4>
-            <RuleModeSelector 
-              value={prefs.leave?.annual_leave_mode || 'hard'} 
-              onChange={(v) => updateNested('leave.annual_leave_mode', v)} 
-            />
-          </div>
-          <div className="p-4 bg-gray-50 rounded-lg space-y-3">
-            <h4 className="font-medium text-gray-700 text-sm">Sick Leave</h4>
-            <RuleModeSelector 
-              value={prefs.leave?.sick_leave_mode || 'hard'} 
-              onChange={(v) => updateNested('leave.sick_leave_mode', v)} 
-            />
-          </div>
-          <div className="p-4 bg-gray-50 rounded-lg space-y-3">
-            <h4 className="font-medium text-gray-700 text-sm">Approved Day Off Requests</h4>
-            <RuleModeSelector 
-              value={prefs.leave?.approved_day_off_mode || 'hard'} 
-              onChange={(v) => updateNested('leave.approved_day_off_mode', v)} 
-            />
-          </div>
-          <div className="p-4 bg-gray-50 rounded-lg space-y-3">
-            <h4 className="font-medium text-gray-700 text-sm">Pending Day Off Requests</h4>
-            <RuleModeSelector 
-              value={prefs.leave?.pending_day_off_mode || 'soft'} 
-              onChange={(v) => updateNested('leave.pending_day_off_mode', v)} 
-            />
-          </div>
-        </div>
-      </Section>
-
       {/* Overtime Rules */}
       <Section title="Overtime Control" icon={Clock}>
         <div className="space-y-4">
@@ -496,6 +385,40 @@ const ControlPreferences = () => {
         </div>
       </Section>
 
+      {/* Leave Validation */}
+      <Section title="Leave & Availability Validation" icon={FileText}>
+        <div className="space-y-4">
+          <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+            <h4 className="font-medium text-gray-700 text-sm">Annual Leave</h4>
+            <RuleModeSelector 
+              value={prefs.leave?.annual_leave_mode || 'hard'} 
+              onChange={(v) => updateNested('leave.annual_leave_mode', v)} 
+            />
+          </div>
+          <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+            <h4 className="font-medium text-gray-700 text-sm">Sick Leave</h4>
+            <RuleModeSelector 
+              value={prefs.leave?.sick_leave_mode || 'hard'} 
+              onChange={(v) => updateNested('leave.sick_leave_mode', v)} 
+            />
+          </div>
+          <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+            <h4 className="font-medium text-gray-700 text-sm">Approved Day Off Requests</h4>
+            <RuleModeSelector 
+              value={prefs.leave?.approved_day_off_mode || 'hard'} 
+              onChange={(v) => updateNested('leave.approved_day_off_mode', v)} 
+            />
+          </div>
+          <div className="p-4 bg-gray-50 rounded-lg space-y-3">
+            <h4 className="font-medium text-gray-700 text-sm">Pending Day Off Requests</h4>
+            <RuleModeSelector 
+              value={prefs.leave?.pending_day_off_mode || 'soft'} 
+              onChange={(v) => updateNested('leave.pending_day_off_mode', v)} 
+            />
+          </div>
+        </div>
+      </Section>
+
       {/* Conflict Detection */}
       <Section title="Conflict & Overlap Detection" icon={AlertTriangle} defaultOpen={false}>
         <div className="space-y-4">
@@ -530,9 +453,286 @@ const ControlPreferences = () => {
           </div>
         </div>
       </Section>
+    </div>
+  );
+};
+
+// LOGIN TAB (Placeholder for future)
+const LoginTab = ({ prefs, updateNested }) => {
+  return (
+    <div className="space-y-6">
+      <Section title="Authentication Settings" icon={LogIn}>
+        <div className="space-y-4">
+          <Toggle 
+            label="Require PIN for all users" 
+            value={true} 
+            onChange={() => {}}
+            help="Staff must enter PIN to access their profile"
+          />
+          <NumberInput 
+            label="PIN Length" 
+            value={4} 
+            onChange={() => {}}
+            suffix="digits"
+            help="Number of digits required for PIN"
+          />
+          <NumberInput 
+            label="Max Failed Attempts" 
+            value={5} 
+            onChange={() => {}}
+            help="Lock account after this many failed attempts"
+          />
+          <NumberInput 
+            label="Lockout Duration" 
+            value={15} 
+            onChange={() => {}}
+            suffix="minutes"
+            help="How long to lock account after max attempts"
+          />
+        </div>
+      </Section>
+
+      <Section title="Session Settings" icon={Clock} defaultOpen={false}>
+        <div className="space-y-4">
+          <NumberInput 
+            label="Staff Session Timeout" 
+            value={5} 
+            onChange={() => {}}
+            suffix="minutes"
+            help="Auto-logout for staff kiosk after inactivity"
+          />
+          <NumberInput 
+            label="Manager Session Timeout" 
+            value={60} 
+            onChange={() => {}}
+            suffix="minutes"
+            help="Auto-logout for manager dashboard after inactivity"
+          />
+          <Toggle 
+            label="Remember device for faster login" 
+            value={false} 
+            onChange={() => {}}
+            help="Allow trusted devices to skip certain auth steps"
+          />
+        </div>
+      </Section>
+
+      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <p className="text-sm text-yellow-700 flex items-center gap-2">
+          <Info size={16} />
+          Login settings are coming soon. These are placeholder values.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// REQUESTS TAB (Placeholder for future)
+const RequestsTab = ({ prefs, updateNested }) => {
+  return (
+    <div className="space-y-6">
+      <Section title="Leave Request Settings" icon={CalendarDays}>
+        <div className="space-y-4">
+          <NumberInput 
+            label="Minimum Notice Days" 
+            value={14} 
+            onChange={() => {}}
+            suffix="days"
+            help="How far in advance leave must be requested"
+          />
+          <NumberInput 
+            label="Max Consecutive Leave Days" 
+            value={14} 
+            onChange={() => {}}
+            suffix="days"
+            help="Maximum days for a single leave request"
+          />
+          <Toggle 
+            label="Auto-approve short leave requests" 
+            value={false} 
+            onChange={() => {}}
+            help="Automatically approve requests under 3 days if coverage exists"
+          />
+        </div>
+      </Section>
+
+      <Section title="Shift Swap Settings" icon={RefreshCw} defaultOpen={false}>
+        <div className="space-y-4">
+          <Toggle 
+            label="Allow direct swap requests" 
+            value={true} 
+            onChange={() => {}}
+            help="Staff can request swaps with specific colleagues"
+          />
+          <Toggle 
+            label="Allow open swap requests" 
+            value={true} 
+            onChange={() => {}}
+            help="Staff can post shifts for anyone to accept"
+          />
+          <Toggle 
+            label="Require manager approval for swaps" 
+            value={true} 
+            onChange={() => {}}
+            help="Manager must approve all shift swaps"
+          />
+          <NumberInput 
+            label="Swap Request Expiry" 
+            value={48} 
+            onChange={() => {}}
+            suffix="hours"
+            help="How long swap requests stay active"
+          />
+        </div>
+      </Section>
+
+      <Section title="Day Off Request Settings" icon={Calendar} defaultOpen={false}>
+        <div className="space-y-4">
+          <NumberInput 
+            label="Max Day Off Requests Per Month" 
+            value={4} 
+            onChange={() => {}}
+            help="Limit on monthly day-off requests per staff"
+          />
+          <Toggle 
+            label="Allow same-day requests" 
+            value={false} 
+            onChange={() => {}}
+            help="Staff can request day off for the current day"
+          />
+        </div>
+      </Section>
+
+      <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <p className="text-sm text-yellow-700 flex items-center gap-2">
+          <Info size={16} />
+          Request settings are coming soon. These are placeholder values.
+        </p>
+      </div>
+    </div>
+  );
+};
+
+// ============ MAIN COMPONENT ============
+
+const ControlPreferences = () => {
+  const { token } = useAuth();
+  const [activeTab, setActiveTab] = useState('planner');
+  const [prefs, setPrefs] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const headers = { Authorization: `Bearer ${token}` };
+
+  const fetchPreferences = useCallback(async () => {
+    try {
+      const res = await axios.get(`${API}/control-preferences`, { headers });
+      setPrefs(res.data.preferences);
+    } catch (err) {
+      console.error('Failed to fetch preferences:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    fetchPreferences();
+  }, [fetchPreferences]);
+
+  const savePreferences = async () => {
+    setSaving(true);
+    try {
+      await axios.put(`${API}/control-preferences`, prefs, { headers });
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      alert('Failed to save preferences');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const updateNested = (path, value) => {
+    setPrefs(prev => {
+      const newPrefs = { ...prev };
+      const keys = path.split('.');
+      let obj = newPrefs;
+      for (let i = 0; i < keys.length - 1; i++) {
+        obj[keys[i]] = { ...obj[keys[i]] };
+        obj = obj[keys[i]];
+      }
+      obj[keys[keys.length - 1]] = value;
+      return newPrefs;
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <RefreshCw size={24} className="animate-spin text-blue-500" />
+      </div>
+    );
+  }
+
+  const tabs = [
+    { id: 'planner', label: 'Shift Planner', icon: CalendarDays },
+    { id: 'login', label: 'Login', icon: LogIn },
+    { id: 'requests', label: 'Requests', icon: ClipboardList },
+  ];
+
+  return (
+    <div className="max-w-4xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Control Preferences</h1>
+          <p className="text-sm text-gray-500">Configure operational rules and settings</p>
+        </div>
+        <button
+          onClick={savePreferences}
+          disabled={saving}
+          className={`px-5 py-2.5 rounded-lg font-medium flex items-center gap-2 transition-all ${
+            saved 
+              ? 'bg-green-500 text-white' 
+              : 'bg-blue-600 text-white hover:bg-blue-700'
+          } disabled:opacity-50`}
+        >
+          {saving ? <RefreshCw size={18} className="animate-spin" /> : saved ? <CheckCircle size={18} /> : <Save size={18} />}
+          {saving ? 'Saving...' : saved ? 'Saved!' : 'Save Changes'}
+        </button>
+      </div>
+
+      {/* Tabs */}
+      <div className="bg-white rounded-xl border border-gray-200 mb-6">
+        <div className="flex border-b border-gray-200">
+          {tabs.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setActiveTab(tab.id)}
+              className={`flex-1 px-6 py-4 flex items-center justify-center gap-2 text-sm font-medium transition-colors ${
+                activeTab === tab.id
+                  ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50/50'
+                  : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+              }`}
+              data-testid={`tab-${tab.id}`}
+            >
+              <tab.icon size={18} />
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Tab Content */}
+      <div className="space-y-6">
+        {activeTab === 'planner' && <ShiftPlannerTab prefs={prefs} updateNested={updateNested} />}
+        {activeTab === 'login' && <LoginTab prefs={prefs} updateNested={updateNested} />}
+        {activeTab === 'requests' && <RequestsTab prefs={prefs} updateNested={updateNested} />}
+      </div>
 
       {/* Save Button (Bottom) */}
-      <div className="flex justify-end pb-8">
+      <div className="flex justify-end py-8">
         <button
           onClick={savePreferences}
           disabled={saving}
