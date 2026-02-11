@@ -636,6 +636,17 @@ html.dark body {
   color: #059669;
 }
 
+/* Dark mode offline indicator */
+.dark .offline-indicator {
+  background-color: #4A4320;
+  color: #FBBF24;
+}
+
+.dark .offline-indicator.online {
+  background-color: #2D4A3E;
+  color: #34D399;
+}
+
 /* Avatar */
 .frappe-avatar {
   width: 40px;
