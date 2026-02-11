@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import {
@@ -32,10 +33,75 @@ import {
   Plus,
   Trash2,
   Edit3,
-  GripVertical
+  GripVertical,
+  Home,
+  RotateCcw
 } from 'lucide-react';
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
+
+// Default values for reset functionality
+const DEFAULT_PLANNER_PREFS = {
+  staffing: {
+    early: { min_total: 8, min_nurses: 2, min_senior_carers: 1, min_carers: 4, min_activities: 0, min_kitchen: 1, min_domestic: 0 },
+    late: { min_total: 8, min_nurses: 2, min_senior_carers: 1, min_carers: 4, min_activities: 0, min_kitchen: 1, min_domestic: 0 },
+    night: { min_total: 4, min_nurses: 1, min_senior_carers: 1, min_carers: 2, min_activities: 0, min_kitchen: 0, min_domestic: 0 },
+    long_day: { min_total: 8, min_nurses: 2, min_senior_carers: 1, min_carers: 4, min_activities: 0, min_kitchen: 1, min_domestic: 0 },
+    weekend_modifier: 0.8
+  },
+  consecutive: { max_consecutive_day_shifts: 5, max_consecutive_night_shifts: 3, mix_shift_types_counts: true, long_day_counts_as: 1, mode: 'soft' },
+  rest: { min_rest_hours: 11, mode: 'soft' },
+  weekend: { max_consecutive_weekends: 2, weekend_days: ['saturday', 'sunday'], partial_weekend_counts: false, mode: 'soft' },
+  leave: { annual_leave_mode: 'hard', sick_leave_mode: 'hard', approved_day_off_mode: 'hard', pending_day_off_mode: 'soft' },
+  overtime: { max_weekly_hours: 48, max_monthly_hours: 192, soft_overtime_threshold: 40, hard_overtime_limit: 60, max_consecutive_overtime_shifts: 3, mode: 'soft' },
+  agency: { enabled: true, max_agency_per_shift: 4, max_agency_percentage: 30, require_manager_approval: true, require_reason: true, track_costs: false, mode: 'soft' },
+  preferences: { respect_preferences: true, mode: 'soft' },
+  conflict_detection_enabled: true,
+  log_all_overrides: true,
+  additional: {
+    shift_confirmation: { require_shift_confirmation: false, auto_unassign_hours: 24, send_confirmation_reminder: true, reminder_hours_before: 48 },
+    escalation: { auto_notify_backup_staff: true, auto_suggest_overtime: true, auto_suggest_agency: false, escalate_to_regional_manager: false, under_coverage_threshold_hours: 12 }
+  }
+};
+
+const DEFAULT_LOGIN_PREFS = {
+  login: {
+    authentication: {
+      auth_mode: 'qr_and_pin',
+      pin_settings: { pin_length: 4, max_failed_attempts: 5, lockout_duration_minutes: 15, enable_progressive_delay: false, require_pin_change_days: 0 }
+    },
+    late_early: {
+      enable_late_reason: true, enable_early_reason: true, late_grace_minutes: 5, early_grace_minutes: 15,
+      late_reason_mandatory: true, early_reason_mandatory: false, notify_manager_on_late: true, notify_manager_on_early: false,
+      enable_free_text: false, max_reasons_displayed: 10,
+      late_reasons: [
+        { id: '1', reason_text: 'Traffic/Transport issues', is_active: true, order: 1 },
+        { id: '2', reason_text: 'Childcare issues', is_active: true, order: 2 },
+        { id: '3', reason_text: 'Medical appointment', is_active: true, order: 3 },
+        { id: '4', reason_text: 'Family emergency', is_active: true, order: 4 },
+        { id: '5', reason_text: 'Weather conditions', is_active: true, order: 5 }
+      ],
+      early_reasons: [
+        { id: '6', reason_text: 'Cover for colleague', is_active: true, order: 1 },
+        { id: '7', reason_text: 'Early handover', is_active: true, order: 2 },
+        { id: '8', reason_text: 'Training', is_active: true, order: 3 },
+        { id: '9', reason_text: 'Meeting', is_active: true, order: 4 }
+      ]
+    },
+    session: { staff_session_timeout_minutes: 5, manager_session_timeout_minutes: 60, auto_logout_on_inactivity: true, allow_multiple_devices: false }
+  },
+  additional: {
+    grace_tolerance: { max_monthly_late_occurrences: 3, auto_flag_habitual_lateness: true, auto_notify_manager_threshold: 3, auto_generate_staff_note: true },
+    attendance_patterns: { alert_frequent_early_leave: true, early_leave_threshold_monthly: 3, alert_excessive_overtime: true, overtime_alert_threshold_hours: 10 }
+  }
+};
+
+const DEFAULT_REQUESTS_PREFS = {
+  requests: {
+    leave: { minimum_notice_days: 14, max_consecutive_leave_days: 14, max_day_off_requests_per_month: 4, block_blackout_dates: false, blackout_dates: [], allow_emergency_leave_override: true, auto_approve_short_leave: false, short_leave_threshold_days: 3 },
+    swap: { allow_direct_swaps: true, allow_open_swaps: true, require_manager_approval: true, auto_approve_if_rules_satisfied: false, swap_request_expiry_hours: 48 }
+  }
+};
 
 // ============ SHARED COMPONENTS ============
 
