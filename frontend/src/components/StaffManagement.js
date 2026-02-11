@@ -338,6 +338,26 @@ const EmployeeFormModal = ({ token, onClose, onSuccess }) => {
             <input type="number" value={form.contract_hours} onChange={e => setForm(f => ({ ...f, contract_hours: parseFloat(e.target.value) || 0 }))}
               className="w-full px-3 py-1.5 text-xs border rounded-lg" />
           </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-2">Shift Preferences</label>
+            <div className="flex flex-wrap gap-2">
+              {SHIFT_PREFERENCE_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => togglePreference(opt.value)}
+                  className={`px-2.5 py-1 text-[10px] rounded-full border transition-colors ${
+                    form.shift_preferences.includes(opt.value)
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
+                  }`}
+                  data-testid={`pref-${opt.value}`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
         <div className="flex gap-3 mt-5">
           <button onClick={onClose} className="flex-1 px-4 py-2 text-xs border rounded-lg text-gray-700 hover:bg-gray-50">Cancel</button>
