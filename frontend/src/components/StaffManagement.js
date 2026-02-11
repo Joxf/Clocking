@@ -378,11 +378,21 @@ const EditEmployeeModal = ({ emp, token, onClose, onSuccess }) => {
     first_name: emp.first_name, last_name: emp.last_name,
     email: emp.email || '', phone: emp.phone || '',
     job_title: emp.job_title, employment_type: emp.employment_type || 'permanent',
-    contract_hours: emp.contract_hours || 36
+    contract_hours: emp.contract_hours || 36,
+    shift_preferences: emp.shift_preferences || []
   });
   const [saving, setSaving] = useState(false);
 
   const empId = emp.id;
+
+  const togglePreference = (pref) => {
+    setForm(f => ({
+      ...f,
+      shift_preferences: f.shift_preferences.includes(pref)
+        ? f.shift_preferences.filter(p => p !== pref)
+        : [...f.shift_preferences, pref]
+    }));
+  };
 
   const handleSubmit = async () => {
     setSaving(true);
@@ -436,6 +446,25 @@ const EditEmployeeModal = ({ emp, token, onClose, onSuccess }) => {
             <label className="block text-[11px] font-medium text-gray-600 mb-1">Contract Hours</label>
             <input type="number" value={form.contract_hours} onChange={e => setForm(f => ({ ...f, contract_hours: parseFloat(e.target.value) || 0 }))}
               className="w-full px-3 py-1.5 text-xs border rounded-lg" />
+          </div>
+          <div>
+            <label className="block text-[11px] font-medium text-gray-600 mb-2">Shift Preferences</label>
+            <div className="flex flex-wrap gap-2">
+              {SHIFT_PREFERENCE_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => togglePreference(opt.value)}
+                  className={`px-2.5 py-1 text-[10px] rounded-full border transition-colors ${
+                    form.shift_preferences.includes(opt.value)
+                      ? 'bg-blue-500 text-white border-blue-500'
+                      : 'bg-white text-gray-600 border-gray-200 hover:border-blue-300'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
         <div className="flex gap-3 mt-5">
