@@ -160,8 +160,10 @@ export const DayRequestModal = memo(({ token, onClose, onSuccess }) => {
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Request Type</label>
+              <label htmlFor="request_type" className="block text-sm font-medium text-gray-700 mb-1">Request Type</label>
               <select 
+                id="request_type"
+                name="request_type"
                 value={formData.request_type} 
                 onChange={(e) => setFormData(prev => ({...prev, request_type: e.target.value}))} 
                 className="frappe-input"
@@ -171,8 +173,10 @@ export const DayRequestModal = memo(({ token, onClose, onSuccess }) => {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
+              <label htmlFor="requested_date" className="block text-sm font-medium text-gray-700 mb-1">Date</label>
               <input 
+                id="requested_date"
+                name="requested_date"
                 type="date" 
                 value={formData.requested_date} 
                 onChange={(e) => setFormData(prev => ({...prev, requested_date: e.target.value}))} 
@@ -181,8 +185,10 @@ export const DayRequestModal = memo(({ token, onClose, onSuccess }) => {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
+              <label htmlFor="day_reason" className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
               <textarea 
+                id="day_reason"
+                name="reason"
                 value={formData.reason} 
                 onChange={(e) => setFormData(prev => ({...prev, reason: e.target.value}))} 
                 className="frappe-input" 
