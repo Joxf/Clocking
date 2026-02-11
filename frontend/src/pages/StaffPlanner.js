@@ -341,9 +341,72 @@ const StaffPlanner = () => {
               <option value="activities">Activities</option>
               <option value="kitchen">Kitchen</option>
             </select>
+            <button
+              onClick={() => setShowRulesPanel(!showRulesPanel)}
+              className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-md border transition-all ${
+                showRulesPanel ? 'bg-blue-50 border-blue-300 text-blue-700' : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+              }`}
+              data-testid="rules-panel-toggle"
+              title="View active rules"
+            >
+              <Shield size={13} />
+              Rules
+            </button>
+            <button
+              onClick={() => navigate('/manager/control-preferences')}
+              className="flex items-center gap-1 px-2.5 py-1 text-xs rounded-md border border-gray-200 text-gray-600 hover:bg-gray-50"
+              data-testid="settings-btn"
+              title="Configure rules"
+            >
+              <Settings size={13} />
+            </button>
           </div>
         </div>
       </div>
+
+      {/* Active Rules Panel */}
+      {showRulesPanel && controlPrefs && (
+        <div className="bg-blue-50 border-b border-blue-200 px-4 py-3" data-testid="rules-panel">
+          <div className="flex items-start gap-4">
+            <div className="flex items-center gap-2 text-blue-700">
+              <Shield size={16} />
+              <span className="text-xs font-semibold">Active Rules:</span>
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs">
+              <div className="flex items-center gap-1">
+                <span className="text-gray-600">Consecutive Days:</span>
+                <RuleStatusBadge mode={controlPrefs.consecutive?.mode || 'soft'} label="Consecutive" />
+                <span className="text-gray-700 font-medium">{controlPrefs.consecutive?.max_consecutive_day_shifts || 5} max</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-600">Consecutive Nights:</span>
+                <RuleStatusBadge mode={controlPrefs.consecutive?.mode || 'soft'} label="Night" />
+                <span className="text-gray-700 font-medium">{controlPrefs.consecutive?.max_consecutive_night_shifts || 3} max</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-600">Rest Hours:</span>
+                <RuleStatusBadge mode={controlPrefs.rest?.mode || 'soft'} label="Rest" />
+                <span className="text-gray-700 font-medium">{controlPrefs.rest?.min_rest_hours || 11}h min</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-600">Weekends:</span>
+                <RuleStatusBadge mode={controlPrefs.weekend?.mode || 'soft'} label="Weekend" />
+                <span className="text-gray-700 font-medium">{controlPrefs.weekend?.max_consecutive_weekends || 2} consecutive</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-600">Overtime:</span>
+                <RuleStatusBadge mode={controlPrefs.overtime?.mode || 'soft'} label="Overtime" />
+                <span className="text-gray-700 font-medium">{controlPrefs.overtime?.max_weekly_hours || 48}h/wk</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-gray-600">Agency:</span>
+                <RuleStatusBadge mode={controlPrefs.agency?.enabled ? (controlPrefs.agency?.mode || 'soft') : 'disabled'} label="Agency" />
+                <span className="text-gray-700 font-medium">{controlPrefs.agency?.max_agency_per_shift || 4} max/shift</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Main grid */}
       <div className="overflow-x-auto" style={{ maxHeight: 'calc(100vh - 200px)' }}>
