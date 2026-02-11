@@ -187,27 +187,20 @@ const StaffProfile = () => {
 
   // Leave Request Modal
   const LeaveRequestModal = () => {
-    const [formData, setFormData] = useState({
-      leave_type: 'annual',
-      start_date: '',
-      end_date: '',
-      reason: ''
-    });
-    const [submitting, setSubmitting] = useState(false);
-
     const handleSubmit = async (e) => {
       e.preventDefault();
-      setSubmitting(true);
+      setFormSubmitting(true);
       try {
-        await axios.post(`${API}/leave-requests`, formData, {
+        await axios.post(`${API}/leave-requests`, leaveFormData, {
           headers: { Authorization: `Bearer ${token}` }
         });
         setShowLeaveModal(false);
+        setLeaveFormData({ leave_type: 'annual', start_date: '', end_date: '', reason: '' });
         fetchAllData();
       } catch (err) {
         alert(err.response?.data?.detail || 'Failed to submit request');
       } finally {
-        setSubmitting(false);
+        setFormSubmitting(false);
       }
     };
 
@@ -220,36 +213,53 @@ const StaffProfile = () => {
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Leave Type</label>
                 <select
-                  value={formData.leave_type}
-                  onChange={(e) => setFormData({...formData, leave_type: e.target.value})}
+                  value={leaveFormData.leave_type}
+                  onChange={(e) => setLeaveFormData({...leaveFormData, leave_type: e.target.value})}
                   className="frappe-input"
                 >
                   <option value="annual">Annual Leave</option>
-                  <option value="sick">Sick Leave</option>
                   <option value="unpaid">Unpaid Leave</option>
                   <option value="compassionate">Compassionate Leave</option>
                   <option value="maternity">Maternity Leave</option>
                   <option value="paternity">Paternity Leave</option>
+                  <option value="other">Other</option>
                 </select>
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                  <input type="date" value={formData.start_date} onChange={(e) => setFormData({...formData, start_date: e.target.value})} className="frappe-input" required />
+                  <input 
+                    type="date" 
+                    value={leaveFormData.start_date} 
+                    onChange={(e) => setLeaveFormData({...leaveFormData, start_date: e.target.value})} 
+                    className="frappe-input" 
+                    required 
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-                  <input type="date" value={formData.end_date} onChange={(e) => setFormData({...formData, end_date: e.target.value})} className="frappe-input" required />
+                  <input 
+                    type="date" 
+                    value={leaveFormData.end_date} 
+                    onChange={(e) => setLeaveFormData({...leaveFormData, end_date: e.target.value})} 
+                    className="frappe-input" 
+                    required 
+                  />
                 </div>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Reason (optional)</label>
-                <textarea value={formData.reason} onChange={(e) => setFormData({...formData, reason: e.target.value})} className="frappe-input" rows={3} />
+                <textarea 
+                  value={leaveFormData.reason} 
+                  onChange={(e) => setLeaveFormData({...leaveFormData, reason: e.target.value})} 
+                  className="frappe-input" 
+                  rows={3} 
+                />
               </div>
             </div>
             <div className="flex gap-3 mt-6">
               <button type="button" onClick={() => setShowLeaveModal(false)} className="frappe-btn frappe-btn-secondary flex-1">Cancel</button>
-              <button type="submit" disabled={submitting} className="frappe-btn frappe-btn-primary flex-1">{submitting ? 'Submitting...' : 'Submit Request'}</button>
+              <button type="submit" disabled={formSubmitting} className="frappe-btn frappe-btn-primary flex-1">{formSubmitting ? 'Submitting...' : 'Submit Request'}</button>
             </div>
           </form>
         </div>
