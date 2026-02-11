@@ -288,6 +288,8 @@ class EmployeeCreate(BaseModel):
     job_title: str
     employment_type: str = "permanent"
     status: str = "active"
+    contract_hours: float = 36.0
+    shift_preferences: List[str] = Field(default_factory=list)
 
 class LeaveRequestCreate(BaseModel):
     leave_type: str
