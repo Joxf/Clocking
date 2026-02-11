@@ -1193,6 +1193,11 @@ const RequestsTab = ({ prefs, updateNested, onReset }) => {
           </div>
         </div>
       </Section>
+
+      {/* Reset to Defaults */}
+      <div className="pt-4 border-t border-gray-200">
+        <ResetToDefaultsButton onReset={onReset} tabName="Requests" />
+      </div>
     </div>
   );
 };
@@ -1200,6 +1205,7 @@ const RequestsTab = ({ prefs, updateNested, onReset }) => {
 // ============ MAIN COMPONENT ============
 
 const ControlPreferences = () => {
+  const navigate = useNavigate();
   const { token } = useAuth();
   const [activeTab, setActiveTab] = useState('planner');
   const [prefs, setPrefs] = useState(null);
