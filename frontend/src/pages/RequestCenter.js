@@ -25,10 +25,9 @@ import {
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-// Simple helper to get leave subtypes
+// Simple helper to get leave subtypes (Sick removed - use Report Sick instead)
 const getLeaveSubtypes = () => [
   { value: 'annual', label: 'Annual Leave', description: 'Holiday time from your allowance' },
-  { value: 'sick', label: 'Sick Leave', description: 'Time off due to illness' },
   { value: 'unpaid', label: 'Unpaid Leave', description: 'Leave without pay' },
   { value: 'compassionate', label: 'Compassionate', description: 'Family emergency or bereavement' },
   { value: 'maternity', label: 'Maternity', description: 'Maternity leave' },
@@ -39,7 +38,6 @@ const getLeaveSubtypes = () => [
 const getLeaveIcon = (value) => {
   const icons = {
     annual: Calendar,
-    sick: Stethoscope,
     unpaid: Briefcase,
     compassionate: Heart,
     maternity: Baby,
