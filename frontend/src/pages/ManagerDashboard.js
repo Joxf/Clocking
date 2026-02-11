@@ -210,16 +210,16 @@ const ManagerDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 dark:bg-slate-900 transition-colors">
       {/* Header */}
-      <header className="frappe-header justify-between">
+      <header className="frappe-header justify-between dark:bg-slate-800 dark:border-slate-700">
         <div className="flex items-center gap-4">
           <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center">
             <span className="text-white text-sm font-bold">CH</span>
           </div>
-          <span className="font-semibold text-gray-900">Comber Home</span>
-          <span className="text-gray-400">|</span>
-          <span className="text-gray-600">Manager Dashboard</span>
+          <span className="font-semibold text-gray-900 dark:text-white">Comber Home</span>
+          <span className="text-gray-400 dark:text-slate-500">|</span>
+          <span className="text-gray-600 dark:text-slate-300">Manager Dashboard</span>
         </div>
 
         <div className="flex items-center gap-4">
@@ -234,19 +234,21 @@ const ManagerDashboard = () => {
             </div>
           )}
 
-          <button onClick={() => setShowMessagesModal(true)} className="p-2 rounded-lg hover:bg-gray-100">
-            <MessageSquare size={20} className="text-gray-600" />
+          <button onClick={() => setShowMessagesModal(true)} className="p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-slate-700">
+            <MessageSquare size={20} className="text-gray-600 dark:text-slate-300" />
           </button>
 
           <NotificationBell />
           
           <RTWPendingCounter onClick={() => setShowRTWRegister(true)} />
+          
+          <ThemeToggle />
 
-          <div className="flex items-center gap-2 text-gray-600 text-sm">
+          <div className="flex items-center gap-2 text-gray-600 dark:text-slate-300 text-sm">
             <span>{user?.first_name} {user?.last_name}</span>
           </div>
 
-          <button data-testid="logout-btn" onClick={handleLogout} className="frappe-btn frappe-btn-secondary">
+          <button data-testid="logout-btn" onClick={handleLogout} className="frappe-btn frappe-btn-secondary dark:bg-slate-700 dark:text-white dark:border-slate-600 dark:hover:bg-slate-600">
             <LogOut size={16} /><span>Logout</span>
           </button>
         </div>
