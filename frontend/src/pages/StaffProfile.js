@@ -6,6 +6,7 @@ import NotificationBell from '../components/NotificationBell';
 import MessagesInbox from '../components/MessagesInbox';
 import MonthlyCalendar from '../components/MonthlyCalendar';
 import TeamCalendar from '../components/TeamCalendar';
+import { LeaveRequestModal, DayRequestModal, ShiftSwapModal } from '../components/StaffProfileModals';
 import {
   User,
   Calendar,
@@ -33,9 +34,11 @@ import {
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
+const IDLE_TIMEOUT = 300; // 5 minutes for staff profile
+
 const StaffProfile = () => {
   const navigate = useNavigate();
-  const { user, token, logout, isOnline, offlineQueue } = useAuth();
+  const { user, token, logout, isOnline } = useAuth();
   
   const [activeTab, setActiveTab] = useState('overview');
   const [profile, setProfile] = useState(null);
@@ -44,7 +47,6 @@ const StaffProfile = () => {
   const [shiftSwaps, setShiftSwaps] = useState({ shift_swaps: [], available_swaps: [], direct_requests: [] });
   const [colleagues, setColleagues] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [idleTime, setIdleTime] = useState(0);
   
   // Modal states
   const [showLeaveModal, setShowLeaveModal] = useState(false);
@@ -52,12 +54,6 @@ const StaffProfile = () => {
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [showMessagesModal, setShowMessagesModal] = useState(false);
   const [selectedShift, setSelectedShift] = useState(null);
-  
-  // Form data states (lifted to parent to prevent reset)
-  const [leaveFormData, setLeaveFormData] = useState({
-    leave_type: 'annual',
-    start_date: '',
-    end_date: '',
     reason: ''
   });
   const [dayFormData, setDayFormData] = useState({
