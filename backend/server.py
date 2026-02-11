@@ -571,6 +571,12 @@ class ControlPreferences(BaseModel):
     conflict_detection_enabled: bool = True
     # Audit Settings
     log_all_overrides: bool = True
+    # Login & Auth Controls
+    login: LoginControls = Field(default_factory=LoginControls)
+    # Requests Controls
+    requests: RequestsControls = Field(default_factory=RequestsControls)
+    # Additional Controls
+    additional: AdditionalControls = Field(default_factory=AdditionalControls)
     # Timestamps
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
