@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Scan, WifiOff, Wifi, AlertCircle } from 'lucide-react';
 import { Html5Qrcode } from 'html5-qrcode';
+import ThemeToggle from '../components/ThemeToggle';
 
 const ScanLogin = () => {
   const navigate = useNavigate();
