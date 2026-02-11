@@ -422,10 +422,12 @@ const RequestCenter = () => {
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="day_request_date" className="block text-sm font-medium text-gray-700 mb-2">
               {isPickUp ? 'Date to Work' : 'Date Off'} *
             </label>
             <input
+              id="day_request_date"
+              name="requested_date"
               type="date"
               value={formData.requested_date || ''}
               onChange={(e) => setFormData({ ...formData, requested_date: e.target.value })}
@@ -437,8 +439,10 @@ const RequestCenter = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Reason (optional)</label>
+            <label htmlFor="day_request_reason" className="block text-sm font-medium text-gray-700 mb-2">Reason (optional)</label>
             <textarea
+              id="day_request_reason"
+              name="reason"
               value={formData.reason || ''}
               onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
               placeholder={isPickUp ? 'Why do you want to pick up this shift?' : 'Why do you need this day off?'}
