@@ -169,6 +169,18 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 - Visual indicators in planner for agency/bank staff
 - is_agency_cover flag on shift assignments
 
+## Bug Fixes
+
+### Modal Form Reset Bug (Fixed - Feb 11, 2026)
+- **Issue:** Forms in modals on Staff Profile page kept resetting/refreshing, preventing data entry
+- **Root Cause:** Parent component re-renders invalidated React.memo optimization because callback functions (onClose, onSuccess) were recreated on each render
+- **Fix Applied:** 
+  - Added useCallback hooks for modal callbacks (closeLeaveModal, closeDayRequestModal, closeSwapModal, closeMessagesModal)
+  - Memoized fetchAllData, getJobTitleDisplay, formatDate functions
+  - Wrapped NotificationBell component with React.memo
+- **Files Modified:** StaffProfile.js, NotificationBell.js
+- **Verification:** All form fields (text input, date pickers, dropdowns) persist values after 10+ seconds
+
 ## Backlog Complete - All Features Implemented!
 
 ### P2 -- Sick Leave Recording
