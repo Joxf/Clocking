@@ -141,16 +141,45 @@ const LateArrivalsReport = () => {
   };
 
   // Filter late arrivals
-  const filteredArrivals = reportData?.late_arrivals?.filter(arrival => {
-    const matchesSearch = 
-      arrival.employee_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      arrival.employee_id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesJobTitle = filterJobTitle === 'all' || arrival.job_title === filterJobTitle;
-    return matchesSearch && matchesJobTitle;
-  }) || [];
+  const getFilteredArrivals = () => {
+    if (!reportData || !reportData.late_arrivals) return [];
+    
+    const arrivals = reportData.late_arrivals;
+    const filtered = [];
+    
+    for (let i = 0; i < arrivals.length; i++) {
+      const arrival = arrivals[i];
+      const nameMatch = (arrival.employee_name || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const idMatch = (arrival.employee_id || '').toLowerCase().includes(searchTerm.toLowerCase());
+      const jobMatch = filterJobTitle === 'all' || arrival.job_title === filterJobTitle;
+      
+      if ((nameMatch || idMatch) && jobMatch) {
+        filtered.push(arrival);
+      }
+    }
+    
+    return filtered;
+  };
+  
+  const filteredArrivals = getFilteredArrivals();
 
   // Get unique job titles for filter
-  const uniqueJobTitles = [...new Set(reportData?.late_arrivals?.map(a => a.job_title).filter(Boolean) || [])];
+  const getUniqueJobTitles = () => {
+    if (!reportData || !reportData.late_arrivals) return [];
+    
+    const titles = new Set();
+    const arrivals = reportData.late_arrivals;
+    
+    for (let i = 0; i < arrivals.length; i++) {
+      if (arrivals[i].job_title) {
+        titles.add(arrivals[i].job_title);
+      }
+    }
+    
+    return Array.from(titles);
+  };
+  
+  const uniqueJobTitles = getUniqueJobTitles();
 
   if (loading) {
     return (
