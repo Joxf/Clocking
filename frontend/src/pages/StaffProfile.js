@@ -269,20 +269,18 @@ const StaffProfile = () => {
 
   // Day Request Modal
   const DayRequestModal = () => {
-    const [formData, setFormData] = useState({ request_type: 'day_off', requested_date: '', reason: '' });
-    const [submitting, setSubmitting] = useState(false);
-
     const handleSubmit = async (e) => {
       e.preventDefault();
-      setSubmitting(true);
+      setFormSubmitting(true);
       try {
-        await axios.post(`${API}/day-requests`, formData, { headers: { Authorization: `Bearer ${token}` } });
+        await axios.post(`${API}/day-requests`, dayFormData, { headers: { Authorization: `Bearer ${token}` } });
         setShowDayRequestModal(false);
+        setDayFormData({ request_type: 'day_off', requested_date: '', reason: '' });
         fetchAllData();
       } catch (err) {
         alert(err.response?.data?.detail || 'Failed to submit request');
       } finally {
-        setSubmitting(false);
+        setFormSubmitting(false);
       }
     };
 
@@ -294,23 +292,38 @@ const StaffProfile = () => {
             <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Request Type</label>
-                <select value={formData.request_type} onChange={(e) => setFormData({...formData, request_type: e.target.value})} className="frappe-input">
+                <select 
+                  value={dayFormData.request_type} 
+                  onChange={(e) => setDayFormData({...dayFormData, request_type: e.target.value})} 
+                  className="frappe-input"
+                >
                   <option value="day_off">Request Day Off</option>
                   <option value="day_on">Request Day On (Extra Shift)</option>
                 </select>
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Date</label>
-                <input type="date" value={formData.requested_date} onChange={(e) => setFormData({...formData, requested_date: e.target.value})} className="frappe-input" required />
+                <input 
+                  type="date" 
+                  value={dayFormData.requested_date} 
+                  onChange={(e) => setDayFormData({...dayFormData, requested_date: e.target.value})} 
+                  className="frappe-input" 
+                  required 
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
-                <textarea value={formData.reason} onChange={(e) => setFormData({...formData, reason: e.target.value})} className="frappe-input" rows={3} />
+                <textarea 
+                  value={dayFormData.reason} 
+                  onChange={(e) => setDayFormData({...dayFormData, reason: e.target.value})} 
+                  className="frappe-input" 
+                  rows={3} 
+                />
               </div>
             </div>
             <div className="flex gap-3 mt-6">
               <button type="button" onClick={() => setShowDayRequestModal(false)} className="frappe-btn frappe-btn-secondary flex-1">Cancel</button>
-              <button type="submit" disabled={submitting} className="frappe-btn frappe-btn-primary flex-1">{submitting ? 'Submitting...' : 'Submit Request'}</button>
+              <button type="submit" disabled={formSubmitting} className="frappe-btn frappe-btn-primary flex-1">{formSubmitting ? 'Submitting...' : 'Submit Request'}</button>
             </div>
           </form>
         </div>
