@@ -79,20 +79,25 @@ const RequestCenter = () => {
     setLoadingData(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const [shiftsRes, colleaguesRes, profileRes, leaveRes, dayRes, prefsRes] = await Promise.all([
+      const [shiftsRes, colleaguesRes, profileRes, leaveRes, dayRes, policiesRes] = await Promise.all([
         axios.get(`${API}/shifts/my-rota`, { headers }),
         axios.get(`${API}/staff/colleagues`, { headers }),
         axios.get(`${API}/staff/profile`, { headers }),
         axios.get(`${API}/leave-requests`, { headers }),
         axios.get(`${API}/day-requests`, { headers }),
-        axios.get(`${API}/control-preferences`, { headers }).catch(() => ({ data: { preferences: null } }))
+        // Use the public policies endpoint accessible to all staff
+        axios.get(`${API}/control-preferences/policies`, { headers }).catch(() => ({ data: null }))
       ]);
       
       setMyShifts(shiftsRes.data.shifts || []);
       setColleagues(colleaguesRes.data.colleagues || []);
       const balance = profileRes.data.leave_balance;
       setLeaveBalance(balance);
-      setControlPrefs(prefsRes.data.preferences);
+      
+      // Map policies response to the expected format
+      if (policiesRes.data) {
+        setControlPrefs({ requests: policiesRes.data });
+      }
       
       const leaves = (leaveRes.data.leave_requests || []).map(r => ({ ...r, reqType: 'leave' }));
       const days = (dayRes.data.day_requests || []).map(r => ({ ...r, reqType: r.request_type }));
