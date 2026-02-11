@@ -34,7 +34,7 @@ import {
   Trash2,
   Edit3,
   GripVertical,
-  Home,
+  ArrowLeft,
   RotateCcw
 } from 'lucide-react';
 
