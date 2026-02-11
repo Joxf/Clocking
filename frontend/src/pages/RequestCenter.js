@@ -336,8 +336,10 @@ const RequestCenter = () => {
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
+            <label htmlFor="leave_start_date" className="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
             <input
+              id="leave_start_date"
+              name="start_date"
               type="date"
               value={formData.start_date || ''}
               onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
@@ -349,8 +351,10 @@ const RequestCenter = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">End Date *</label>
+            <label htmlFor="leave_end_date" className="block text-sm font-medium text-gray-700 mb-2">End Date *</label>
             <input
+              id="leave_end_date"
+              name="end_date"
               type="date"
               value={formData.end_date || ''}
               onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
@@ -362,8 +366,10 @@ const RequestCenter = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Reason (optional)</label>
+            <label htmlFor="leave_reason" className="block text-sm font-medium text-gray-700 mb-2">Reason (optional)</label>
             <textarea
+              id="leave_reason"
+              name="reason"
               value={formData.reason || ''}
               onChange={(e) => setFormData({ ...formData, reason: e.target.value })}
               placeholder="Any additional details..."
