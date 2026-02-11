@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
@@ -54,6 +54,12 @@ const StaffProfile = () => {
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [showMessagesModal, setShowMessagesModal] = useState(false);
   const [selectedShift, setSelectedShift] = useState(null);
+
+  // Memoized modal callbacks to prevent re-renders from breaking form state
+  const closeLeaveModal = useCallback(() => setShowLeaveModal(false), []);
+  const closeDayRequestModal = useCallback(() => setShowDayRequestModal(false), []);
+  const closeSwapModal = useCallback(() => { setShowSwapModal(false); setSelectedShift(null); }, []);
+  const closeMessagesModal = useCallback(() => setShowMessagesModal(false), []);
 
   useEffect(() => {
     if (!user || !token) {
