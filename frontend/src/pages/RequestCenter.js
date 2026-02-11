@@ -19,7 +19,9 @@ import {
   Heart,
   Baby,
   HelpCircle,
-  Loader2
+  Loader2,
+  AlertTriangle,
+  Info
 } from 'lucide-react';
 
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
@@ -62,6 +64,8 @@ const RequestCenter = () => {
   const [leaveBalance, setLeaveBalance] = useState(null);
   const [recentRequests, setRecentRequests] = useState([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [controlPrefs, setControlPrefs] = useState(null);
+  const [validationWarnings, setValidationWarnings] = useState([]);
 
   useEffect(() => {
     if (!user || !token) {
@@ -75,18 +79,20 @@ const RequestCenter = () => {
     setLoadingData(true);
     try {
       const headers = { Authorization: `Bearer ${token}` };
-      const [shiftsRes, colleaguesRes, profileRes, leaveRes, dayRes] = await Promise.all([
+      const [shiftsRes, colleaguesRes, profileRes, leaveRes, dayRes, prefsRes] = await Promise.all([
         axios.get(`${API}/shifts/my-rota`, { headers }),
         axios.get(`${API}/staff/colleagues`, { headers }),
         axios.get(`${API}/staff/profile`, { headers }),
         axios.get(`${API}/leave-requests`, { headers }),
-        axios.get(`${API}/day-requests`, { headers })
+        axios.get(`${API}/day-requests`, { headers }),
+        axios.get(`${API}/control-preferences`, { headers }).catch(() => ({ data: { preferences: null } }))
       ]);
       
       setMyShifts(shiftsRes.data.shifts || []);
       setColleagues(colleaguesRes.data.colleagues || []);
       const balance = profileRes.data.leave_balance;
       setLeaveBalance(balance);
+      setControlPrefs(prefsRes.data.preferences);
       
       const leaves = (leaveRes.data.leave_requests || []).map(r => ({ ...r, reqType: 'leave' }));
       const days = (dayRes.data.day_requests || []).map(r => ({ ...r, reqType: r.request_type }));
@@ -100,11 +106,72 @@ const RequestCenter = () => {
     }
   };
 
+  // Validate leave request against control preferences
+  const validateLeaveRequest = (startDate, endDate) => {
+    const warnings = [];
+    if (!controlPrefs?.requests?.leave) return warnings;
+    
+    const leaveRules = controlPrefs.requests.leave;
+    const start = new Date(startDate);
+    const end = new Date(endDate || startDate);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Calculate days in advance
+    const daysInAdvance = Math.floor((start - today) / (1000 * 60 * 60 * 24));
+    if (daysInAdvance < leaveRules.minimum_notice_days) {
+      warnings.push({
+        type: 'notice',
+        message: `Leave should be requested at least ${leaveRules.minimum_notice_days} days in advance. You are requesting ${daysInAdvance} days ahead.`,
+        severity: leaveRules.allow_emergency_leave_override ? 'warning' : 'error'
+      });
+    }
+    
+    // Calculate consecutive days
+    const consecutiveDays = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+    if (consecutiveDays > leaveRules.max_consecutive_leave_days) {
+      warnings.push({
+        type: 'consecutive',
+        message: `Maximum consecutive leave is ${leaveRules.max_consecutive_leave_days} days. You are requesting ${consecutiveDays} days.`,
+        severity: 'error'
+      });
+    }
+    
+    return warnings;
+  };
+
+  // Validate swap request against control preferences  
+  const validateSwapRequest = (swapType) => {
+    const warnings = [];
+    if (!controlPrefs?.requests?.swap) return warnings;
+    
+    const swapRules = controlPrefs.requests.swap;
+    
+    if (swapType === 'direct' && !swapRules.allow_direct_swaps) {
+      warnings.push({
+        type: 'swap_type',
+        message: 'Direct swap requests are not currently allowed.',
+        severity: 'error'
+      });
+    }
+    
+    if (swapType === 'open' && !swapRules.allow_open_swaps) {
+      warnings.push({
+        type: 'swap_type',
+        message: 'Open swap requests (to all colleagues) are not currently allowed.',
+        severity: 'error'
+      });
+    }
+    
+    return warnings;
+  };
+
   const handleSelectType = (type) => {
     setSelectedType(type);
     setSelectedSubtype(null);
     setFormData({});
     setError(null);
+    setValidationWarnings([]);
     
     if (type === 'leave') {
       setStep('subtype');
@@ -120,6 +187,7 @@ const RequestCenter = () => {
 
   const handleBack = () => {
     setError(null);
+    setValidationWarnings([]);
     if (step === 'form' && selectedType === 'leave') {
       setStep('subtype');
     } else if (step === 'subtype' || step === 'form') {
@@ -143,6 +211,15 @@ const RequestCenter = () => {
       const headers = { Authorization: `Bearer ${token}` };
       
       if (selectedType === 'leave') {
+        // Validate before submitting
+        const warnings = validateLeaveRequest(formData.start_date, formData.end_date);
+        const hasErrors = warnings.some(w => w.severity === 'error');
+        if (hasErrors) {
+          setValidationWarnings(warnings);
+          setSubmitting(false);
+          return;
+        }
+        
         endpoint = '/leave-requests';
         payload = {
           leave_type: selectedSubtype,
