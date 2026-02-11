@@ -22,6 +22,64 @@ export const AuthProvider = ({ children }) => {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [offlineQueue, setOfflineQueue] = useState([]);
   const [lastSyncStatus, setLastSyncStatus] = useState(null);
+  const [loginPreferences, setLoginPreferences] = useState(null);
+  const [sessionTimeout, setSessionTimeout] = useState(null);
+  const [lastActivity, setLastActivity] = useState(Date.now());
+
+  // Fetch login preferences on mount
+  useEffect(() => {
+    const fetchLoginPrefs = async () => {
+      try {
+        const response = await axios.get(`${API}/control-preferences`);
+        const prefs = response.data.preferences;
+        if (prefs?.login) {
+          setLoginPreferences(prefs.login);
+        }
+      } catch (err) {
+        // Use defaults if fetch fails
+        console.log('Using default login preferences');
+      }
+    };
+    fetchLoginPrefs();
+  }, []);
+
+  // Handle session timeout based on control preferences
+  useEffect(() => {
+    if (!user || !loginPreferences?.session) return;
+    
+    const sessionPrefs = loginPreferences.session;
+    const timeoutMinutes = user.role === 'manager' || user.role === 'admin'
+      ? sessionPrefs.manager_session_timeout_minutes || 60
+      : sessionPrefs.staff_session_timeout_minutes || 5;
+    
+    if (!sessionPrefs.auto_logout_on_inactivity) return;
+    
+    // Set up activity tracker
+    const handleActivity = () => setLastActivity(Date.now());
+    window.addEventListener('mousemove', handleActivity);
+    window.addEventListener('keydown', handleActivity);
+    window.addEventListener('click', handleActivity);
+    window.addEventListener('touchstart', handleActivity);
+    
+    // Check for timeout periodically
+    const checkTimeout = setInterval(() => {
+      const inactiveMinutes = (Date.now() - lastActivity) / (1000 * 60);
+      if (inactiveMinutes >= timeoutMinutes) {
+        console.log(`Session timeout after ${timeoutMinutes} minutes of inactivity`);
+        logout();
+      }
+    }, 30000); // Check every 30 seconds
+    
+    setSessionTimeout(timeoutMinutes);
+    
+    return () => {
+      window.removeEventListener('mousemove', handleActivity);
+      window.removeEventListener('keydown', handleActivity);
+      window.removeEventListener('click', handleActivity);
+      window.removeEventListener('touchstart', handleActivity);
+      clearInterval(checkTimeout);
+    };
+  }, [user, loginPreferences, lastActivity]);
 
   // Monitor online status
   useEffect(() => {
