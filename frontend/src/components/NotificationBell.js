@@ -179,6 +179,8 @@ const NotificationBell = memo(() => {
       )}
     </div>
   );
-};
+});
+
+NotificationBell.displayName = 'NotificationBell';
 
 export default NotificationBell;
