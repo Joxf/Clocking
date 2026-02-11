@@ -102,7 +102,8 @@ const StaffProfile = () => {
     navigate('/staff');
   };
 
-  const getJobTitleDisplay = (jobTitle) => {
+  // Memoize helper functions passed to modals to ensure stable references
+  const getJobTitleDisplay = useCallback((jobTitle) => {
     const titles = {
       nurse: 'Nurse',
       senior_carer: 'Senior Carer',
@@ -112,15 +113,15 @@ const StaffProfile = () => {
       maintenance: 'Maintenance'
     };
     return titles[jobTitle] || jobTitle;
-  };
+  }, []);
 
-  const formatDate = (dateStr) => {
+  const formatDate = useCallback((dateStr) => {
     return new Date(dateStr).toLocaleDateString('en-GB', { 
       weekday: 'short', 
       day: 'numeric', 
       month: 'short' 
     });
-  };
+  }, []);
 
   const getStatusBadge = (status) => {
     const styles = {
