@@ -338,6 +338,22 @@ html.dark body {
   background-color: var(--frappe-bg);
 }
 
+/* Dark mode table styles */
+.dark .frappe-table th {
+  background-color: #2C2C2C;
+  color: #ADADAD;
+  border-color: #5B5B5B;
+}
+
+.dark .frappe-table td {
+  border-color: #5B5B5B;
+  color: var(--frappe-text-medium);
+}
+
+.dark .frappe-table tr:hover {
+  background-color: #2C2C2C;
+}
+
 /* Frappe-style sidebar */
 .frappe-sidebar {
   position: fixed;
