@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, memo } from 'react';
 import axios from 'axios';
 import {
   Users,
@@ -9,8 +9,8 @@ import {
 
 const API = `${process.env.REACT_APP_BACKEND_URL}/api`;
 
-// Leave Request Modal
-export const LeaveRequestModal = ({ token, onClose, onSuccess }) => {
+// Leave Request Modal - memoized to prevent re-renders
+export const LeaveRequestModal = memo(({ token, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     leave_type: 'annual',
     start_date: '',
@@ -35,9 +35,14 @@ export const LeaveRequestModal = ({ token, onClose, onSuccess }) => {
     }
   };
 
+  // Stop propagation to prevent parent events
+  const handleContainerClick = (e) => {
+    e.stopPropagation();
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6" onClick={handleContainerClick}>
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Request Leave</h2>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
@@ -45,7 +50,7 @@ export const LeaveRequestModal = ({ token, onClose, onSuccess }) => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Leave Type</label>
               <select
                 value={formData.leave_type}
-                onChange={(e) => setFormData({...formData, leave_type: e.target.value})}
+                onChange={(e) => setFormData(prev => ({...prev, leave_type: e.target.value}))}
                 className="frappe-input"
               >
                 <option value="annual">Annual Leave</option>
@@ -62,7 +67,7 @@ export const LeaveRequestModal = ({ token, onClose, onSuccess }) => {
                 <input 
                   type="date" 
                   value={formData.start_date} 
-                  onChange={(e) => setFormData({...formData, start_date: e.target.value})} 
+                  onChange={(e) => setFormData(prev => ({...prev, start_date: e.target.value}))} 
                   className="frappe-input" 
                   required 
                 />
@@ -72,7 +77,7 @@ export const LeaveRequestModal = ({ token, onClose, onSuccess }) => {
                 <input 
                   type="date" 
                   value={formData.end_date} 
-                  onChange={(e) => setFormData({...formData, end_date: e.target.value})} 
+                  onChange={(e) => setFormData(prev => ({...prev, end_date: e.target.value}))} 
                   className="frappe-input" 
                   required 
                 />
@@ -82,7 +87,7 @@ export const LeaveRequestModal = ({ token, onClose, onSuccess }) => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Reason (optional)</label>
               <textarea 
                 value={formData.reason} 
-                onChange={(e) => setFormData({...formData, reason: e.target.value})} 
+                onChange={(e) => setFormData(prev => ({...prev, reason: e.target.value}))} 
                 className="frappe-input" 
                 rows={3} 
               />
@@ -98,10 +103,12 @@ export const LeaveRequestModal = ({ token, onClose, onSuccess }) => {
       </div>
     </div>
   );
-};
+});
 
-// Day Request Modal
-export const DayRequestModal = ({ token, onClose, onSuccess }) => {
+LeaveRequestModal.displayName = 'LeaveRequestModal';
+
+// Day Request Modal - memoized
+export const DayRequestModal = memo(({ token, onClose, onSuccess }) => {
   const [formData, setFormData] = useState({
     request_type: 'day_off',
     requested_date: '',
@@ -125,9 +132,13 @@ export const DayRequestModal = ({ token, onClose, onSuccess }) => {
     }
   };
 
+  const handleContainerClick = (e) => {
+    e.stopPropagation();
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6" onClick={handleContainerClick}>
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Request Day On/Off</h2>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
@@ -135,7 +146,7 @@ export const DayRequestModal = ({ token, onClose, onSuccess }) => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Request Type</label>
               <select 
                 value={formData.request_type} 
-                onChange={(e) => setFormData({...formData, request_type: e.target.value})} 
+                onChange={(e) => setFormData(prev => ({...prev, request_type: e.target.value}))} 
                 className="frappe-input"
               >
                 <option value="day_off">Request Day Off</option>
@@ -147,7 +158,7 @@ export const DayRequestModal = ({ token, onClose, onSuccess }) => {
               <input 
                 type="date" 
                 value={formData.requested_date} 
-                onChange={(e) => setFormData({...formData, requested_date: e.target.value})} 
+                onChange={(e) => setFormData(prev => ({...prev, requested_date: e.target.value}))} 
                 className="frappe-input" 
                 required 
               />
@@ -156,7 +167,7 @@ export const DayRequestModal = ({ token, onClose, onSuccess }) => {
               <label className="block text-sm font-medium text-gray-700 mb-1">Reason</label>
               <textarea 
                 value={formData.reason} 
-                onChange={(e) => setFormData({...formData, reason: e.target.value})} 
+                onChange={(e) => setFormData(prev => ({...prev, reason: e.target.value}))} 
                 className="frappe-input" 
                 rows={3} 
               />
@@ -172,10 +183,12 @@ export const DayRequestModal = ({ token, onClose, onSuccess }) => {
       </div>
     </div>
   );
-};
+});
 
-// Shift Swap Modal
-export const ShiftSwapModal = ({ token, selectedShift, colleagues, onClose, onSuccess, getJobTitleDisplay, formatDate }) => {
+DayRequestModal.displayName = 'DayRequestModal';
+
+// Shift Swap Modal - memoized
+export const ShiftSwapModal = memo(({ token, selectedShift, colleagues, onClose, onSuccess, getJobTitleDisplay, formatDate }) => {
   const [swapType, setSwapType] = useState('open');
   const [targetColleague, setTargetColleague] = useState('');
   const [reason, setReason] = useState('');
@@ -205,9 +218,13 @@ export const ShiftSwapModal = ({ token, selectedShift, colleagues, onClose, onSu
     }
   };
 
+  const handleContainerClick = (e) => {
+    e.stopPropagation();
+  };
+
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={handleContainerClick}>
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Request Shift Swap</h2>
         
         {selectedShift && (
@@ -289,4 +306,6 @@ export const ShiftSwapModal = ({ token, selectedShift, colleagues, onClose, onSu
       </div>
     </div>
   );
-};
+});
+
+ShiftSwapModal.displayName = 'ShiftSwapModal';
