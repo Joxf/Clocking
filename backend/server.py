@@ -3107,9 +3107,93 @@ async def validate_assignment(employee_id, shift_date, template, care_home_id, e
     if not tpl:
         return [{"type": "error", "message": f"Unknown template: {template}"}]
 
+    # Get control preferences for dynamic validation
+    prefs = await get_control_preferences(care_home_id)
+    rest_rules = prefs.get("rest", {})
+    consecutive_rules = prefs.get("consecutive", {})
+    leave_rules = prefs.get("leave", {})
+    preference_rules = prefs.get("preferences", {})
+    weekend_rules = prefs.get("weekend", {})
+    overtime_rules = prefs.get("overtime", {})
+    
+    min_rest = rest_rules.get("min_rest_hours", MIN_REST_HOURS)
+    max_consecutive = consecutive_rules.get("max_consecutive_day_shifts", MAX_CONSECUTIVE_DAYS)
+
     new_start_str = tpl["start"]
     new_end_str = tpl["end"]
     new_start, new_end = parse_shift_times({"shift_date": shift_date, "start_time": new_start_str, "end_time": new_end_str})
+
+    # Get employee data for preference/leave checks
+    employee = await db.employees.find_one({"id": employee_id}, {"_id": 0})
+    
+    # Check shift preferences
+    if preference_rules.get("respect_preferences", True) and employee:
+        emp_prefs = employee.get("shift_preferences", [])
+        pref_mode = preference_rules.get("mode", "soft")
+        
+        if emp_prefs and pref_mode != "disabled":
+            is_night = template == "night"
+            is_weekend = datetime.fromisoformat(shift_date).weekday() >= 5
+            
+            # Check preference violations
+            violation = None
+            if "nights_only" in emp_prefs and not is_night:
+                violation = "Staff prefers nights only"
+            elif "no_nights" in emp_prefs and is_night:
+                violation = "Staff prefers no night shifts"
+            elif "weekdays_only" in emp_prefs and is_weekend:
+                violation = "Staff prefers weekdays only"
+            elif "weekends_only" in emp_prefs and not is_weekend:
+                violation = "Staff prefers weekends only"
+            elif "earlies_only" in emp_prefs and template not in ["early"]:
+                violation = "Staff prefers early shifts only"
+            elif "lates_only" in emp_prefs and template not in ["late"]:
+                violation = "Staff prefers late shifts only"
+            
+            if violation:
+                warnings.append({
+                    "type": "preference" if pref_mode == "soft" else "error",
+                    "rule_mode": pref_mode,
+                    "message": violation
+                })
+                if pref_mode == "hard":
+                    return warnings
+
+    # Check approved leave
+    if leave_rules.get("annual_leave_mode", "hard") != "disabled":
+        leave = await db.leave_requests.find_one({
+            "employee_id": employee_id,
+            "status": "approved",
+            "start_date": {"$lte": shift_date},
+            "end_date": {"$gte": shift_date}
+        }, {"_id": 0})
+        if leave:
+            mode = leave_rules.get("annual_leave_mode", "hard")
+            warnings.append({
+                "type": "error" if mode == "hard" else "leave",
+                "rule_mode": mode,
+                "message": f"Staff has approved leave on {shift_date}"
+            })
+            if mode == "hard":
+                return warnings
+
+    # Check sick leave
+    if leave_rules.get("sick_leave_mode", "hard") != "disabled":
+        sick = await db.sick_leave.find_one({
+            "employee_id": employee_id,
+            "status": {"$in": ["active", "pending"]},
+            "start_date": {"$lte": shift_date},
+            "$or": [{"end_date": {"$gte": shift_date}}, {"end_date": None}]
+        }, {"_id": 0})
+        if sick:
+            mode = leave_rules.get("sick_leave_mode", "hard")
+            warnings.append({
+                "type": "error" if mode == "hard" else "sick_leave",
+                "rule_mode": mode,
+                "message": f"Staff has active sick leave"
+            })
+            if mode == "hard":
+                return warnings
 
     # Get existing shifts for this employee in a ±5 day window
     date_obj = datetime.fromisoformat(shift_date).date()
@@ -3126,45 +3210,75 @@ async def validate_assignment(employee_id, shift_date, template, care_home_id, e
 
     existing = await db.shifts.find(query, {"_id": 0}).to_list(100)
 
-    # Check duplicate: already has a shift on this date
+    # Check duplicate: already has a shift on this date (always hard block)
     same_day = [s for s in existing if s["shift_date"] == shift_date]
     if same_day:
-        warnings.append({"type": "error", "message": f"Employee already has a shift on {shift_date}"})
+        warnings.append({"type": "error", "rule_mode": "hard", "message": f"Employee already has a shift on {shift_date}"})
         return warnings
 
-    # Check 11-hour rest gap
-    for s in existing:
-        ex_start, ex_end = parse_shift_times(s)
-        gap_before = (new_start - ex_end).total_seconds() / 3600
-        gap_after = (ex_start - new_end).total_seconds() / 3600
-        if 0 < gap_before < MIN_REST_HOURS:
-            warnings.append({
-                "type": "rest_gap",
-                "message": f"Only {gap_before:.1f}h rest after shift on {s['shift_date']} ({s['start_time']}-{s['end_time']}). Minimum is {MIN_REST_HOURS}h."
-            })
-        if 0 < gap_after < MIN_REST_HOURS:
-            warnings.append({
-                "type": "rest_gap",
-                "message": f"Only {gap_after:.1f}h rest before shift on {s['shift_date']} ({s['start_time']}-{s['end_time']}). Minimum is {MIN_REST_HOURS}h."
-            })
+    # Check rest gap
+    rest_mode = rest_rules.get("mode", "soft")
+    if rest_mode != "disabled":
+        for s in existing:
+            ex_start, ex_end = parse_shift_times(s)
+            gap_before = (new_start - ex_end).total_seconds() / 3600
+            gap_after = (ex_start - new_end).total_seconds() / 3600
+            if 0 < gap_before < min_rest:
+                warnings.append({
+                    "type": "error" if rest_mode == "hard" else "rest_gap",
+                    "rule_mode": rest_mode,
+                    "message": f"Only {gap_before:.1f}h rest after shift on {s['shift_date']} ({s['start_time']}-{s['end_time']}). Minimum is {min_rest}h."
+                })
+            if 0 < gap_after < min_rest:
+                warnings.append({
+                    "type": "error" if rest_mode == "hard" else "rest_gap",
+                    "rule_mode": rest_mode,
+                    "message": f"Only {gap_after:.1f}h rest before shift on {s['shift_date']} ({s['start_time']}-{s['end_time']}). Minimum is {min_rest}h."
+                })
 
     # Check consecutive days
-    shift_dates = sorted(set([s["shift_date"] for s in existing] + [shift_date]))
-    max_consecutive = 1
-    current_streak = 1
-    for i in range(1, len(shift_dates)):
-        d1 = datetime.fromisoformat(shift_dates[i - 1]).date()
-        d2 = datetime.fromisoformat(shift_dates[i]).date()
-        if (d2 - d1).days == 1:
-            current_streak += 1
-            max_consecutive = max(max_consecutive, current_streak)
-        else:
-            current_streak = 1
-    if max_consecutive > MAX_CONSECUTIVE_DAYS:
-        warnings.append({
-            "type": "consecutive",
-            "message": f"This creates {max_consecutive} consecutive working days. Maximum recommended is {MAX_CONSECUTIVE_DAYS}."
-        })
+    consecutive_mode = consecutive_rules.get("mode", "soft")
+    if consecutive_mode != "disabled":
+        shift_dates = sorted(set([s["shift_date"] for s in existing] + [shift_date]))
+        max_streak = 1
+        current_streak = 1
+        for i in range(1, len(shift_dates)):
+            d1 = datetime.fromisoformat(shift_dates[i - 1]).date()
+            d2 = datetime.fromisoformat(shift_dates[i]).date()
+            if (d2 - d1).days == 1:
+                current_streak += 1
+                max_streak = max(max_streak, current_streak)
+            else:
+                current_streak = 1
+        if max_streak > max_consecutive:
+            warnings.append({
+                "type": "error" if consecutive_mode == "hard" else "consecutive",
+                "rule_mode": consecutive_mode,
+                "message": f"This creates {max_streak} consecutive working days. Maximum is {max_consecutive}."
+            })
+
+    # Check weekend protection
+    weekend_mode = weekend_rules.get("mode", "soft")
+    if weekend_mode != "disabled" and datetime.fromisoformat(shift_date).weekday() >= 5:
+        max_weekends = weekend_rules.get("max_consecutive_weekends", 2)
+        # Count consecutive weekends worked
+        weekend_shifts = await db.shifts.find({
+            "employee_id": employee_id,
+            "status": {"$in": ["scheduled", "completed"]}
+        }, {"_id": 0, "shift_date": 1}).to_list(200)
+        
+        # Simple consecutive weekend check
+        weekend_count = 0
+        for ws in weekend_shifts:
+            if datetime.fromisoformat(ws["shift_date"]).weekday() >= 5:
+                weekend_count += 1
+        
+        if weekend_count >= max_weekends * 2:  # Approximate check
+            warnings.append({
+                "type": "error" if weekend_mode == "hard" else "weekend",
+                "rule_mode": weekend_mode,
+                "message": f"Staff has worked {weekend_count // 2} recent weekends. Maximum is {max_weekends}."
+            })
 
     return warnings
 
