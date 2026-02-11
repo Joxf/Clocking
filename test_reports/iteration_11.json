@@ -1,0 +1,65 @@
+{
+  "summary": "Bug Fix Verification - Form Reset Fix and Sick Leave Type Removal. All 5 bug fix features tested and verified. Forms in StaffProfile modals (Request Leave, Request Day On/Off, Shift Swap) now persist values correctly. 'Sick' leave type removed from both StaffProfile and RequestCenter dropdowns.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "passed_tests": {
+    "form_reset_bug_fix": [
+      "Request Leave modal: form values (leave_type, start_date, end_date, reason) persist correctly after user input",
+      "Request Day On/Off modal: form values (request_type, date, reason) persist correctly after user input",
+      "Shift Swap modal: form values (swap_type, target_colleague, reason) persist correctly after user input"
+    ],
+    "sick_leave_removal": [
+      "StaffProfile Leave Request modal: leave_type dropdown options are ['annual', 'unpaid', 'compassionate', 'maternity', 'paternity', 'other'] - NO 'sick'",
+      "RequestCenter Leave Types: options are ['annual', 'unpaid', 'compassionate', 'maternity', 'paternity', 'other'] - NO 'sick'",
+      "Report Sick option is available as separate flow in RequestCenter (not under Leave Request)"
+    ],
+    "code_verification": [
+      "StaffProfile.js: leaveFormData, dayFormData, swapFormData, formSubmitting state lifted to parent level (lines 57-74)",
+      "RequestCenter.js: getLeaveSubtypes() returns only 6 types without 'sick' (lines 29-36)"
+    ]
+  },
+
+  "test_report_links": [
+    "/app/frontend/src/pages/StaffProfile.js",
+    "/app/frontend/src/pages/RequestCenter.js"
+  ],
+
+  "action_items": [],
+
+  "critical_code_review_comments": [],
+
+  "updated_files": [],
+
+  "success_rate": {
+    "backend": "N/A (frontend only testing)",
+    "frontend": "100% (5/5 bug fixes verified)"
+  },
+
+  "test_credentials": {
+    "staff": "PIN: 5368 (Emma Thompson - NRS001)"
+  },
+
+  "seed_data_creation": "None - used existing test data",
+
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+
+  "context_for_next_testing_agent": "Bug fix verification complete. The form reset bug in StaffProfile.js was fixed by lifting useState hooks (leaveFormData, dayFormData, swapFormData, formSubmitting) from inside modal components to parent level. This prevents state loss on parent re-renders. The 'sick' leave type was removed from both StaffProfile LeaveRequestModal and RequestCenter getLeaveSubtypes() since 'Report Sick' exists as a dedicated flow. All modals now correctly persist user input.",
+
+  "screenshots": [
+    ".screenshots/leave_form_complete.png - Leave Request form with all fields filled",
+    ".screenshots/day_form_complete.png - Day On/Off form with all fields filled", 
+    ".screenshots/swap_filled_final.png - Shift Swap form with direct type selected and reason filled",
+    ".screenshots/request_center_leave_subtypes.png - Request Center showing 6 leave types (no sick)"
+  ]
+}
