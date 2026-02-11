@@ -240,6 +240,21 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
   - Swap request expiry (hours)
 - **Planner Leave Validation Summary:** Shows current validation mode settings from Shift Planner tab
 
+### Control Preferences Integration (Complete - Feb 12, 2026)
+- **Home Button:** Control Preferences page has Home icon button to return to /manager dashboard
+- **Reset to Defaults:** Each tab (Shift Planner, Login, Requests) has "Reset to Defaults" button with confirmation dialog
+- **Staff Planner Rules Panel:**
+  - Toggle button shows/hides active rules panel
+  - Displays: Consecutive Days limit, Consecutive Nights limit, Rest Hours minimum, Weekend rule, Overtime limit, Agency limit
+  - Settings button (gear icon) navigates to Control Preferences page
+- **Request Center Integration:**
+  - Leave Policy info banner shows minimum notice days and max consecutive days
+  - Frontend validation against control preferences rules before submission
+  - Public endpoint `/api/control-preferences/policies` accessible to all staff (read-only)
+- **Session Timeout Integration:**
+  - AuthContext fetches login preferences on mount
+  - Auto-logout after inactivity based on staff_session_timeout_minutes or manager_session_timeout_minutes
+
 ## Backlog Complete - All Features Implemented!
 
 ### P2 -- Sick Leave Recording
