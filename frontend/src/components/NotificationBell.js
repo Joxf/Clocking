@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, memo } from 'react';
 import { useAuth } from '../context/AuthContext';
 import axios from 'axios';
 import { Bell, X, Check, MessageSquare, Calendar, RefreshCcw } from 'lucide-react';
@@ -6,7 +6,7 @@ import { Bell, X, Check, MessageSquare, Calendar, RefreshCcw } from 'lucide-reac
 const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
 const API = `${BACKEND_URL}/api`;
 
-const NotificationBell = () => {
+const NotificationBell = memo(() => {
   const { token } = useAuth();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
