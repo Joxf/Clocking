@@ -552,6 +552,22 @@ html.dark body {
   border-color: var(--frappe-error-light);
 }
 
+/* Dark mode PIN pad styles */
+.dark .pin-pad-btn {
+  background-color: #454545;
+  border-color: #5B5B5B;
+  color: #F5F5F5;
+}
+
+.dark .pin-pad-btn:hover {
+  background-color: #5B5B5B;
+}
+
+.dark .pin-dot {
+  border-color: #5B5B5B;
+  background-color: #454545;
+}
+
 /* PIN display */
 .pin-display {
   display: flex;
