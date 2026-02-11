@@ -192,15 +192,8 @@ const StaffProfile = () => {
 
         <div className="flex items-center gap-4">
           <div className={`offline-indicator ${isOnline ? 'online' : ''}`}>
-            {isOnline ? <><Wifi size={14} /><span>Online</span></> : <><WifiOff size={14} /><span>Offline ({offlineQueue.length})</span></>}
+            {isOnline ? <><Wifi size={14} /><span>Online</span></> : <><WifiOff size={14} /><span>Offline</span></>}
           </div>
-
-          {idleTime > 30 && (
-            <div className="flex items-center gap-2 text-orange-600 text-sm">
-              <AlertCircle size={14} />
-              <span>Session ends in {IDLE_TIMEOUT - idleTime}s</span>
-            </div>
-          )}
 
           <button onClick={() => setShowMessagesModal(true)} className="p-2 rounded-lg hover:bg-gray-100" data-testid="messages-btn">
             <MessageSquare size={20} className="text-gray-600" />
