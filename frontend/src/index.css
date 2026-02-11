@@ -5,7 +5,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
 :root {
-  /* Frappe HRMS Color Palette */
+  /* Frappe HRMS Color Palette - Light Mode */
   --frappe-bg: #F3F4F6;
   --frappe-surface: #FFFFFF;
   --frappe-primary: #2563EB;
@@ -24,6 +24,69 @@
   --frappe-error-light: #FEE2E2;
   --frappe-sidebar-width: 240px;
   --frappe-header-height: 56px;
+  
+  /* Shadcn UI variables */
+  --background: 0 0% 100%;
+  --foreground: 222.2 84% 4.9%;
+  --card: 0 0% 100%;
+  --card-foreground: 222.2 84% 4.9%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222.2 84% 4.9%;
+  --primary: 221.2 83.2% 53.3%;
+  --primary-foreground: 210 40% 98%;
+  --secondary: 210 40% 96.1%;
+  --secondary-foreground: 222.2 47.4% 11.2%;
+  --muted: 210 40% 96.1%;
+  --muted-foreground: 215.4 16.3% 46.9%;
+  --accent: 210 40% 96.1%;
+  --accent-foreground: 222.2 47.4% 11.2%;
+  --destructive: 0 84.2% 60.2%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 214.3 31.8% 91.4%;
+  --input: 214.3 31.8% 91.4%;
+  --ring: 221.2 83.2% 53.3%;
+  --radius: 0.5rem;
+}
+
+/* Dark Mode Variables */
+.dark {
+  --frappe-bg: #0F172A;
+  --frappe-surface: #1E293B;
+  --frappe-primary: #3B82F6;
+  --frappe-primary-hover: #60A5FA;
+  --frappe-primary-light: #1E3A5F;
+  --frappe-secondary: #94A3B8;
+  --frappe-border: #334155;
+  --frappe-text-dark: #F1F5F9;
+  --frappe-text-medium: #CBD5E1;
+  --frappe-text-light: #94A3B8;
+  --frappe-success: #10B981;
+  --frappe-success-light: #064E3B;
+  --frappe-warning: #F59E0B;
+  --frappe-warning-light: #78350F;
+  --frappe-error: #EF4444;
+  --frappe-error-light: #7F1D1D;
+  
+  /* Shadcn UI dark mode */
+  --background: 222.2 84% 4.9%;
+  --foreground: 210 40% 98%;
+  --card: 222.2 84% 4.9%;
+  --card-foreground: 210 40% 98%;
+  --popover: 222.2 84% 4.9%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 217.2 91.2% 59.8%;
+  --primary-foreground: 222.2 47.4% 11.2%;
+  --secondary: 217.2 32.6% 17.5%;
+  --secondary-foreground: 210 40% 98%;
+  --muted: 217.2 32.6% 17.5%;
+  --muted-foreground: 215 20.2% 65.1%;
+  --accent: 217.2 32.6% 17.5%;
+  --accent-foreground: 210 40% 98%;
+  --destructive: 0 62.8% 30.6%;
+  --destructive-foreground: 210 40% 98%;
+  --border: 217.2 32.6% 17.5%;
+  --input: 217.2 32.6% 17.5%;
+  --ring: 224.3 76.3% 48%;
 }
 
 * {
@@ -38,6 +101,14 @@ body {
   color: var(--frappe-text-dark);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+/* Dark mode body styles */
+.dark body,
+html.dark body {
+  background-color: var(--frappe-bg);
+  color: var(--frappe-text-dark);
 }
 
 /* Frappe-style card */
@@ -46,6 +117,11 @@ body {
   border: 1px solid var(--frappe-border);
   border-radius: 8px;
   box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  transition: background-color 0.3s ease, border-color 0.3s ease;
+}
+
+.dark .frappe-card {
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.3);
 }
 
 .frappe-card-header {
