@@ -18,7 +18,6 @@ export const LeaveRequestModal = memo(({ token, onClose, onSuccess }) => {
     reason: ''
   });
   const [submitting, setSubmitting] = useState(false);
-  const modalRef = useRef(null);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
