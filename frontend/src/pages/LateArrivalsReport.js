@@ -33,20 +33,20 @@ const LateArrivalsReport = () => {
   const [year, setYear] = useState(new Date().getFullYear());
   const [month, setMonth] = useState(new Date().getMonth() + 1);
   
-  const headers = { Authorization: `Bearer ${token}` };
-  
   const monthNames = [
     'January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'
   ];
 
   const fetchReport = useCallback(async () => {
+    if (!token) return;
+    
     setLoading(true);
     setError(null);
     try {
       const res = await axios.get(`${API}/attendance/late-arrivals-report`, {
         params: { year, month },
-        headers
+        headers: { Authorization: `Bearer ${token}` }
       });
       setReportData(res.data);
     } catch (err) {
