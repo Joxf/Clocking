@@ -8,6 +8,7 @@ import AttendanceCalendar from '../components/AttendanceCalendar';
 import LeaveManagement from '../components/LeaveManagement';
 import OperationalOverview from '../components/OperationalOverview';
 import StaffManagement from '../components/StaffManagement';
+import { RTWPendingCounter, RTWRegister } from '../components/RTWComponents';
 import {
   LayoutDashboard,
   Users,
@@ -43,6 +44,7 @@ const ManagerDashboard = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [idleTime, setIdleTime] = useState(0);
   const [showMessagesModal, setShowMessagesModal] = useState(false);
+  const [showRTWRegister, setShowRTWRegister] = useState(false);
   const [notesTarget, setNotesTarget] = useState(null); // {id, name}
 
   const IDLE_TIMEOUT = 60;
