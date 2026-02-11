@@ -552,18 +552,18 @@ const StaffProfile = () => {
         )}
       </main>
 
-      {/* Modals - Using external components to prevent re-render issues */}
+      {/* Modals - Using external memoized components with stable callback references */}
       {showLeaveModal && (
         <LeaveRequestModal 
           token={token} 
-          onClose={() => setShowLeaveModal(false)} 
+          onClose={closeLeaveModal} 
           onSuccess={fetchAllData}
         />
       )}
       {showDayRequestModal && (
         <DayRequestModal 
           token={token} 
-          onClose={() => setShowDayRequestModal(false)} 
+          onClose={closeDayRequestModal} 
           onSuccess={fetchAllData}
         />
       )}
@@ -572,13 +572,13 @@ const StaffProfile = () => {
           token={token}
           selectedShift={selectedShift}
           colleagues={colleagues}
-          onClose={() => { setShowSwapModal(false); setSelectedShift(null); }} 
+          onClose={closeSwapModal} 
           onSuccess={fetchAllData}
           getJobTitleDisplay={getJobTitleDisplay}
           formatDate={formatDate}
         />
       )}
-      {showMessagesModal && <MessagesInbox onClose={() => setShowMessagesModal(false)} />}
+      {showMessagesModal && <MessagesInbox onClose={closeMessagesModal} />}
     </div>
   );
 };
