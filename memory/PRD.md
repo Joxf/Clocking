@@ -194,21 +194,51 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 
 ### Control Preferences System (Complete - Feb 11, 2026)
 - **Global Settings Page:** `/manager/control-preferences` accessible by Manager/Admin
-- **15 Rule Categories Implemented:**
-  1. Staffing Requirements Per Shift (min staff by role per shift type)
-  2. Consecutive Shift Limits (max consecutive days/nights)
-  3. Minimum Rest Between Shifts (11h default)
-  4. Consecutive Weekend Protection (max weekends in a row)
-  5. Leave Validation (annual, sick, day off requests)
-  6. Overtime Control (weekly/monthly limits, thresholds)
-  7. Agency Staff Management (enable/disable, limits, approval)
-  8. Staff Shift Preferences (respect preferences validation)
-  9. Conflict & Overlap Detection (always hard block)
-  10. Override Logging & Audit
+- **3 Tabbed Interface:**
+  - **Shift Planner Tab:** Staffing requirements, consecutive limits, rest rules, weekend protection, overtime, agency, preferences, leave validation, shift confirmation, escalation rules
+  - **Login Tab:** PIN settings, authentication mode, late/early controls, reason management, session controls, grace tolerance, attendance patterns
+  - **Requests Tab:** Leave controls, swap controls, planner leave validation summary
 - **3 Validation Modes:** Hard Block, Soft Warning (with audit log), Disabled
 - **Dynamic Integration:** validate_assignment() function uses Control Preferences
-- **Backend:** ControlPreferences model, OverrideLog model, 5 API endpoints
-- **Frontend:** Full settings page with collapsible sections
+- **Backend Models:**
+  - ControlPreferences (main model with all sections)
+  - LoginControls (PINSettings, AuthenticationSettings, LateEarlyControls, SessionControls)
+  - RequestsControls (LeaveControls, SwapControls)
+  - AdditionalControls (GraceToleranceControls, AttendancePatternControls, ShiftConfirmationRules, EscalationRules)
+- **Frontend:** Full settings page with collapsible sections and tabbed navigation
+
+### Control Preferences - Login Tab Features (Complete - Feb 12, 2026)
+- **PIN Settings:** PIN length, max failed attempts, lockout duration, PIN change frequency, progressive delay
+- **Authentication Mode:** PIN Only, QR Code Only, QR Code + PIN selectable options
+- **Late & Early Clock-In Controls:**
+  - Enable/disable late/early reason selection
+  - Configurable grace periods (minutes)
+  - Mandatory reason toggles
+  - Manager notification on late/early
+- **Late/Early Reason Management:**
+  - Add, edit, delete custom reasons
+  - Enable/disable individual reasons
+  - Free text option toggle
+  - Maximum reasons displayed setting
+- **Session Controls:** Staff/Manager session timeouts, auto-logout on inactivity, multiple devices toggle
+- **Grace & Tolerance Controls:** Monthly late threshold, habitual lateness flagging, auto-generate staff notes
+- **Attendance Pattern Monitoring:** Early leave alerts, overtime alerts with configurable thresholds
+
+### Control Preferences - Requests Tab Features (Complete - Feb 12, 2026)
+- **Leave Request Controls:**
+  - Minimum notice days
+  - Max consecutive leave days
+  - Max day off requests per month
+  - Blackout date blocking
+  - Emergency leave override
+  - Auto-approve short leave requests
+- **Shift Swap Controls:**
+  - Direct swap requests (person to person)
+  - Open swap requests (open to team)
+  - Manager approval requirement
+  - Auto-approve if rules satisfied
+  - Swap request expiry (hours)
+- **Planner Leave Validation Summary:** Shows current validation mode settings from Shift Planner tab
 
 ## Backlog Complete - All Features Implemented!
 
