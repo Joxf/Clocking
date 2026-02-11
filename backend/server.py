@@ -352,14 +352,126 @@ SHIFT_TEMPLATES = {
     "long_day": {"label": "Long Day", "start": "08:00", "end": "20:00", "hours": 12, "color": "#34D399"},
 }
 
+# Default coverage baseline (will be overridden by Control Preferences)
 COVERAGE_BASELINE = {
     "nurse": 2,
-    "carer": 6,  # care assistants (carer + senior_carer)
+    "carer": 6,
 }
 
+# Default constants (will be overridden by Control Preferences)
 MIN_REST_HOURS = 11
 MAX_CONSECUTIVE_DAYS = 2
 MIN_WEEKLY_HOURS = 36.0
+
+# ============ CONTROL PREFERENCES MODEL ============
+
+class RuleMode(str, Enum):
+    hard = "hard"       # Cannot override - blocks action
+    soft = "soft"       # Warning with mandatory reason
+    disabled = "disabled"  # Rule not enforced
+
+class StaffingRequirement(BaseModel):
+    min_total: int = 8
+    min_nurses: int = 2
+    min_senior_carers: int = 1
+    min_carers: int = 4
+    min_activities: int = 0
+    min_kitchen: int = 1
+    min_domestic: int = 0
+
+class ShiftTypeStaffing(BaseModel):
+    early: StaffingRequirement = Field(default_factory=StaffingRequirement)
+    late: StaffingRequirement = Field(default_factory=StaffingRequirement)
+    night: StaffingRequirement = Field(default_factory=lambda: StaffingRequirement(min_total=4, min_nurses=1, min_senior_carers=1, min_carers=2, min_kitchen=0))
+    long_day: StaffingRequirement = Field(default_factory=StaffingRequirement)
+    weekend_modifier: float = 0.8  # 80% of weekday requirements
+
+class ConsecutiveShiftRules(BaseModel):
+    max_consecutive_day_shifts: int = 5
+    max_consecutive_night_shifts: int = 3
+    mix_shift_types_counts: bool = True
+    long_day_counts_as: int = 1  # 1 or 2
+    mode: RuleMode = RuleMode.soft
+
+class RestRules(BaseModel):
+    min_rest_hours: int = 11
+    mode: RuleMode = RuleMode.soft
+
+class WeekendProtection(BaseModel):
+    max_consecutive_weekends: int = 2
+    weekend_days: List[str] = Field(default_factory=lambda: ["saturday", "sunday"])
+    partial_weekend_counts: bool = False  # Does working 1 day count as full weekend?
+    mode: RuleMode = RuleMode.soft
+
+class LeaveValidation(BaseModel):
+    annual_leave_mode: RuleMode = RuleMode.hard
+    sick_leave_mode: RuleMode = RuleMode.hard
+    approved_day_off_mode: RuleMode = RuleMode.hard
+    pending_day_off_mode: RuleMode = RuleMode.soft
+
+class OvertimeRules(BaseModel):
+    max_weekly_hours: int = 48
+    max_monthly_hours: int = 192
+    soft_overtime_threshold: int = 40  # Warning above this
+    hard_overtime_limit: int = 60      # Block above this (per week)
+    max_consecutive_overtime_shifts: int = 3
+    mode: RuleMode = RuleMode.soft
+
+class AgencyRules(BaseModel):
+    enabled: bool = True
+    max_agency_per_shift: int = 4
+    max_agency_percentage: float = 30.0  # Max 30% of shift covered by agency
+    require_manager_approval: bool = True
+    require_reason: bool = True
+    track_costs: bool = False
+    mode: RuleMode = RuleMode.soft
+
+class ShiftPreferenceRules(BaseModel):
+    respect_preferences: bool = True
+    mode: RuleMode = RuleMode.soft  # soft = warn if violating, hard = block
+
+class ControlPreferences(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    care_home_id: str
+    # Staffing Requirements
+    staffing: ShiftTypeStaffing = Field(default_factory=ShiftTypeStaffing)
+    # Consecutive Shift Limits
+    consecutive: ConsecutiveShiftRules = Field(default_factory=ConsecutiveShiftRules)
+    # Rest Rules
+    rest: RestRules = Field(default_factory=RestRules)
+    # Weekend Protection
+    weekend: WeekendProtection = Field(default_factory=WeekendProtection)
+    # Leave Validation
+    leave: LeaveValidation = Field(default_factory=LeaveValidation)
+    # Overtime Rules
+    overtime: OvertimeRules = Field(default_factory=OvertimeRules)
+    # Agency Rules
+    agency: AgencyRules = Field(default_factory=AgencyRules)
+    # Shift Preferences
+    preferences: ShiftPreferenceRules = Field(default_factory=ShiftPreferenceRules)
+    # Conflict Detection (always hard)
+    conflict_detection_enabled: bool = True
+    # Audit Settings
+    log_all_overrides: bool = True
+    # Timestamps
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
+class OverrideLog(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    care_home_id: str
+    manager_id: str
+    manager_name: str
+    rule_type: str  # rest_gap, consecutive, weekend, leave, overtime, preference, agency
+    rule_violated: str
+    staff_id: str
+    staff_name: str
+    shift_date: str
+    justification: str
+    is_agency: bool = False
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 # ============ HELPERS ============
 
