@@ -650,19 +650,31 @@ const KioskClockScreen = () => {
   const hasShift = shiftInfo?.has_shift || false;
 
   return (
-    <div className="min-h-screen bg-gray-100">
+    <div className="min-h-screen bg-gray-100 dark:bg-slate-900 transition-colors">
+      {/* Late/Early Reason Dialog */}
+      {lateEarlyDialog && lateEarlyPrefs && (
+        <LateEarlyReasonDialog
+          type={lateEarlyDialog.type}
+          reasons={lateEarlyDialog.type === 'late' ? lateEarlyPrefs.late_reasons : lateEarlyPrefs.early_reasons}
+          onSubmit={handleLateEarlySubmit}
+          onCancel={handleLateEarlyCancel}
+          isMandatory={lateEarlyDialog.type === 'late' ? lateEarlyPrefs.late_reason_mandatory : lateEarlyPrefs.early_reason_mandatory}
+          enableFreeText={lateEarlyPrefs.enable_free_text}
+        />
+      )}
+
       {/* Header */}
-      <header className="frappe-header justify-between">
+      <header className="frappe-header justify-between dark:bg-slate-800 dark:border-slate-700">
         <div className="flex items-center gap-4">
           <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center">
             <span className="text-white text-sm font-bold">CH</span>
           </div>
-          <span className="font-semibold text-gray-900">Comber Home</span>
+          <span className="font-semibold text-gray-900 dark:text-white">Comber Home</span>
         </div>
 
         <div className="flex items-center gap-4">
           {/* Offline indicator with sync button */}
-          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${isOnline ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full text-sm ${isOnline ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' : 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400'}`}>
             {isOnline ? (
               <>
                 <Wifi size={14} />
@@ -671,7 +683,7 @@ const KioskClockScreen = () => {
                   <button
                     onClick={handleSync}
                     disabled={syncing}
-                    className="ml-1 p-1 hover:bg-green-200 rounded"
+                    className="ml-1 p-1 hover:bg-green-200 dark:hover:bg-green-900/50 rounded"
                     title="Sync pending events"
                     data-testid="sync-btn"
                   >
@@ -689,7 +701,7 @@ const KioskClockScreen = () => {
 
           {/* Unsynced events badge */}
           {unsyncedCount > 0 && (
-            <div className="flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 rounded-full text-xs" data-testid="unsynced-badge">
+            <div className="flex items-center gap-1 px-2 py-1 bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 rounded-full text-xs" data-testid="unsynced-badge">
               <CloudOff size={12} />
               <span>{unsyncedCount} pending</span>
             </div>
@@ -702,12 +714,15 @@ const KioskClockScreen = () => {
               <span>Session ends in {IDLE_TIMEOUT - idleTime}s</span>
             </div>
           )}
+          
+          {/* Theme Toggle */}
+          <ThemeToggle />
 
           {/* Profile button */}
           <button
             data-testid="profile-btn"
             onClick={goToProfile}
-            className="frappe-btn frappe-btn-secondary"
+            className="frappe-btn frappe-btn-secondary dark:bg-slate-700 dark:text-white dark:border-slate-600"
           >
             <User size={16} />
             <span>My Profile</span>
