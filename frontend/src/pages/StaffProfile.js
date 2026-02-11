@@ -83,6 +83,7 @@ const StaffProfile = () => {
       setDayRequests(dayRes.data.day_requests || []);
       setShiftSwaps(swapRes.data);
       setColleagues(colleaguesRes.data.colleagues || []);
+      setPendingRTW(rtwRes.data.rtw_forms?.[0] || null);
     } catch (err) {
       console.error('Failed to fetch data:', err);
     } finally {
