@@ -759,12 +759,17 @@ const ShiftPlannerTab = ({ prefs, updateNested, onReset }) => {
           </div>
         </div>
       </Section>
+
+      {/* Reset to Defaults */}
+      <div className="pt-4 border-t border-gray-200">
+        <ResetToDefaultsButton onReset={onReset} tabName="Shift Planner" />
+      </div>
     </div>
   );
 };
 
 // LOGIN TAB
-const LoginTab = ({ prefs, updateNested }) => {
+const LoginTab = ({ prefs, updateNested, onReset }) => {
   if (!prefs) return null;
 
   const loginPrefs = prefs.login || {};
