@@ -241,7 +241,7 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 - **Planner Leave Validation Summary:** Shows current validation mode settings from Shift Planner tab
 
 ### Control Preferences Integration (Complete - Feb 12, 2026)
-- **Home Button:** Control Preferences page has Home icon button to return to /manager dashboard
+- **Back Button:** Control Preferences page has ArrowLeft icon button to navigate back (uses navigate(-1))
 - **Reset to Defaults:** Each tab (Shift Planner, Login, Requests) has "Reset to Defaults" button with confirmation dialog
 - **Staff Planner Rules Panel:**
   - Toggle button shows/hides active rules panel
@@ -254,6 +254,24 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 - **Session Timeout Integration:**
   - AuthContext fetches login preferences on mount
   - Auto-logout after inactivity based on staff_session_timeout_minutes or manager_session_timeout_minutes
+
+### Dark Mode (Complete - Feb 12, 2026)
+- **ThemeContext:** Global state management for dark/light mode
+- **ThemeToggle Component:** Moon/Sun icon button on ScanLogin, ManagerDashboard, KioskClockScreen
+- **Persistence:** User preference saved to localStorage, persists across sessions
+- **CSS Variables:** Complete dark mode color palette in index.css with Tailwind dark: variant support
+- **System Preference:** Falls back to system preference if user hasn't manually set theme
+
+### Late/Early Clock-In Reason Dialogs (Complete - Feb 12, 2026)
+- **LateEarlyReasonDialog Component:** Modal dialog shown when staff clocks in late or early
+- **Configuration in Control Preferences > Login Tab:**
+  - Enable/disable late/early reason collection
+  - Configurable grace periods (minutes)
+  - Mandatory vs optional reason selection
+  - Manager notification toggles
+  - Customizable reason lists with add/edit/delete
+  - Free text option for "Other" reasons
+- **Logic:** Compares current time vs scheduled shift start time with configured grace periods
 
 ## Backlog Complete - All Features Implemented!
 
