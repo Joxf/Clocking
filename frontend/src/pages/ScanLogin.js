@@ -110,9 +110,10 @@ const ScanLogin = () => {
   };
 
   return (
-    <div className="kiosk-container">
-      {/* Offline indicator */}
-      <div className="fixed top-4 right-4">
+    <div className="kiosk-container dark:bg-slate-900">
+      {/* Top bar with offline indicator and theme toggle */}
+      <div className="fixed top-4 right-4 flex items-center gap-3">
+        <ThemeToggle />
         <div className={`offline-indicator ${isOnline ? 'online' : ''}`}>
           {isOnline ? (
             <>
@@ -128,7 +129,7 @@ const ScanLogin = () => {
         </div>
       </div>
 
-      <div className="kiosk-card">
+      <div className="kiosk-card dark:bg-slate-800 dark:border-slate-700">
         {/* Logo */}
         <div className="mb-6">
           <div className="w-16 h-16 mx-auto rounded-lg bg-blue-600 flex items-center justify-center">
@@ -136,8 +137,8 @@ const ScanLogin = () => {
           </div>
         </div>
 
-        <h1 className="kiosk-title">Comber Home</h1>
-        <p className="kiosk-subtitle">Scan your QR code to clock in</p>
+        <h1 className="kiosk-title dark:text-white">Comber Home</h1>
+        <p className="kiosk-subtitle dark:text-slate-400">Scan your QR code to clock in</p>
 
         {/* Camera View */}
         <div className="camera-view" ref={scannerRef}>
