@@ -457,6 +457,36 @@ const RequestCenter = () => {
           </div>
         </div>
         
+        {/* Validation Warnings from Control Preferences */}
+        {validationWarnings.length > 0 && (
+          <div className="space-y-2">
+            {validationWarnings.map((warning, idx) => (
+              <div 
+                key={idx}
+                className={`p-3 rounded-xl text-sm flex items-start gap-2 ${
+                  warning.severity === 'error' 
+                    ? 'bg-red-50 border border-red-200 text-red-700'
+                    : 'bg-amber-50 border border-amber-200 text-amber-700'
+                }`}
+              >
+                {warning.severity === 'error' ? <AlertCircle size={16} className="flex-shrink-0 mt-0.5" /> : <AlertTriangle size={16} className="flex-shrink-0 mt-0.5" />}
+                <span>{warning.message}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        
+        {/* Leave Policy Info */}
+        {controlPrefs?.requests?.leave && (
+          <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-sm text-blue-700 flex items-start gap-2">
+            <Info size={16} className="flex-shrink-0 mt-0.5" />
+            <div>
+              <span className="font-medium">Leave Policy:</span> Minimum {controlPrefs.requests.leave.minimum_notice_days} days notice required. 
+              Maximum {controlPrefs.requests.leave.max_consecutive_leave_days} consecutive days per request.
+            </div>
+          </div>
+        )}
+        
         {error && (
           <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex items-center gap-2">
             <AlertCircle size={16} />
@@ -465,7 +495,15 @@ const RequestCenter = () => {
         )}
         
         <button
-          onClick={() => setStep('confirm')}
+          onClick={() => {
+            // Run validation before continuing
+            const warnings = validateLeaveRequest(formData.start_date, formData.end_date);
+            setValidationWarnings(warnings);
+            const hasErrors = warnings.some(w => w.severity === 'error');
+            if (!hasErrors) {
+              setStep('confirm');
+            }
+          }}
           disabled={!formData.start_date || !formData.end_date}
           className="w-full py-4 bg-blue-500 text-white rounded-xl font-medium hover:bg-blue-600 disabled:bg-gray-300 disabled:cursor-not-allowed transition-colors"
           data-testid="leave-continue-btn"
