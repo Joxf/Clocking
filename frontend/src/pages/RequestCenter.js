@@ -605,8 +605,10 @@ const RequestCenter = () => {
         
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Select Your Shift *</label>
+            <label htmlFor="swap_shift_id" className="block text-sm font-medium text-gray-700 mb-2">Select Your Shift *</label>
             <select
+              id="swap_shift_id"
+              name="shift_id"
               value={formData.shift_id || ''}
               onChange={(e) => setFormData({ ...formData, shift_id: e.target.value })}
               className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
@@ -659,8 +661,10 @@ const RequestCenter = () => {
           
           {formData.swap_type === 'direct' && (
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Select Colleague *</label>
+              <label htmlFor="swap_target_employee" className="block text-sm font-medium text-gray-700 mb-2">Select Colleague *</label>
               <select
+                id="swap_target_employee"
+                name="target_employee_id"
                 value={formData.target_employee_id || ''}
                 onChange={(e) => setFormData({ ...formData, target_employee_id: e.target.value })}
                 className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
