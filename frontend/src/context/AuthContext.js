@@ -330,6 +330,8 @@ export const AuthProvider = ({ children }) => {
     isOnline,
     offlineQueue,
     lastSyncStatus,
+    loginPreferences,
+    sessionTimeout,
     validateQR,
     validatePIN,
     logout,
