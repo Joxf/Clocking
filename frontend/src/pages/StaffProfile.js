@@ -333,33 +333,28 @@ const StaffProfile = () => {
 
   // Enhanced Shift Swap Modal with 3 options
   const ShiftSwapModal = () => {
-    const [swapType, setSwapType] = useState('open'); // open, direct, manager
-    const [targetColleague, setTargetColleague] = useState('');
-    const [reason, setReason] = useState('');
-    const [messageToManager, setMessageToManager] = useState('');
-    const [submitting, setSubmitting] = useState(false);
-
     const handleSubmit = async (e) => {
       e.preventDefault();
       if (!selectedShift) return;
       
-      setSubmitting(true);
+      setFormSubmitting(true);
       try {
         await axios.post(`${API}/shift-swaps`, {
           original_shift_id: selectedShift.id,
-          swap_type: swapType,
-          target_id: swapType === 'direct' ? targetColleague : null,
-          reason: reason,
-          message_to_manager: swapType === 'manager' ? messageToManager : null
+          swap_type: swapFormData.swapType,
+          target_id: swapFormData.swapType === 'direct' ? swapFormData.targetColleague : null,
+          reason: swapFormData.reason,
+          message_to_manager: swapFormData.swapType === 'manager' ? swapFormData.messageToManager : null
         }, { headers: { Authorization: `Bearer ${token}` } });
         
         setShowSwapModal(false);
         setSelectedShift(null);
+        setSwapFormData({ swapType: 'open', targetColleague: '', reason: '', messageToManager: '' });
         fetchAllData();
       } catch (err) {
         alert(err.response?.data?.detail || 'Failed to create swap request');
       } finally {
-        setSubmitting(false);
+        setFormSubmitting(false);
       }
     };
 
@@ -380,8 +375,8 @@ const StaffProfile = () => {
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">How would you like to swap?</label>
               <div className="space-y-2">
-                <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer ${swapType === 'open' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
-                  <input type="radio" name="swapType" value="open" checked={swapType === 'open'} onChange={(e) => setSwapType(e.target.value)} />
+                <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer ${swapFormData.swapType === 'open' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
+                  <input type="radio" name="swapType" value="open" checked={swapFormData.swapType === 'open'} onChange={(e) => setSwapFormData({...swapFormData, swapType: e.target.value})} />
                   <Users size={20} className="text-blue-600" />
                   <div>
                     <p className="font-medium">Post Open Request</p>
@@ -389,8 +384,8 @@ const StaffProfile = () => {
                   </div>
                 </label>
                 
-                <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer ${swapType === 'direct' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
-                  <input type="radio" name="swapType" value="direct" checked={swapType === 'direct'} onChange={(e) => setSwapType(e.target.value)} />
+                <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer ${swapFormData.swapType === 'direct' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
+                  <input type="radio" name="swapType" value="direct" checked={swapFormData.swapType === 'direct'} onChange={(e) => setSwapFormData({...swapFormData, swapType: e.target.value})} />
                   <UserCheck size={20} className="text-green-600" />
                   <div>
                     <p className="font-medium">Request Specific Colleague</p>
@@ -398,8 +393,8 @@ const StaffProfile = () => {
                   </div>
                 </label>
                 
-                <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer ${swapType === 'manager' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
-                  <input type="radio" name="swapType" value="manager" checked={swapType === 'manager'} onChange={(e) => setSwapType(e.target.value)} />
+                <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer ${swapFormData.swapType === 'manager' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
+                  <input type="radio" name="swapType" value="manager" checked={swapFormData.swapType === 'manager'} onChange={(e) => setSwapFormData({...swapFormData, swapType: e.target.value})} />
                   <MessageSquare size={20} className="text-purple-600" />
                   <div>
                     <p className="font-medium">Contact Manager</p>
@@ -410,10 +405,10 @@ const StaffProfile = () => {
             </div>
 
             {/* Direct swap - select colleague */}
-            {swapType === 'direct' && (
+            {swapFormData.swapType === 'direct' && (
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Select Colleague</label>
-                <select value={targetColleague} onChange={(e) => setTargetColleague(e.target.value)} className="frappe-input" required>
+                <select value={swapFormData.targetColleague} onChange={(e) => setSwapFormData({...swapFormData, targetColleague: e.target.value})} className="frappe-input" required>
                   <option value="">Choose a colleague...</option>
                   {colleagues.map((c) => (
                     <option key={c.id} value={c.id}>{c.first_name} {c.last_name} ({getJobTitleDisplay(c.job_title)})</option>
@@ -423,17 +418,17 @@ const StaffProfile = () => {
             )}
 
             {/* Manager message */}
-            {swapType === 'manager' && (
+            {swapFormData.swapType === 'manager' && (
               <div className="mb-4">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Message to Manager</label>
-                <textarea value={messageToManager} onChange={(e) => setMessageToManager(e.target.value)} className="frappe-input" rows={3} placeholder="Explain your situation and what help you need..." required />
+                <textarea value={swapFormData.messageToManager} onChange={(e) => setSwapFormData({...swapFormData, messageToManager: e.target.value})} className="frappe-input" rows={3} placeholder="Explain your situation and what help you need..." required />
               </div>
             )}
 
             {/* Reason */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">Reason for swap</label>
-              <textarea value={reason} onChange={(e) => setReason(e.target.value)} className="frappe-input" rows={2} placeholder="Why do you need to swap this shift?" />
+              <textarea value={swapFormData.reason} onChange={(e) => setSwapFormData({...swapFormData, reason: e.target.value})} className="frappe-input" rows={2} placeholder="Why do you need to swap this shift?" />
             </div>
 
             {/* Info note */}
@@ -444,7 +439,7 @@ const StaffProfile = () => {
 
             <div className="flex gap-3">
               <button type="button" onClick={() => { setShowSwapModal(false); setSelectedShift(null); }} className="frappe-btn frappe-btn-secondary flex-1">Cancel</button>
-              <button type="submit" disabled={submitting} className="frappe-btn frappe-btn-primary flex-1">{submitting ? 'Submitting...' : 'Submit Request'}</button>
+              <button type="submit" disabled={formSubmitting} className="frappe-btn frappe-btn-primary flex-1">{formSubmitting ? 'Submitting...' : 'Submit Request'}</button>
             </div>
           </form>
         </div>
