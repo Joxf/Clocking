@@ -428,7 +428,8 @@ const KioskClockScreen = () => {
         employee_id: user.employee_id,
         action: 'clock_out'
       }, {
-        headers: { Authorization: `Bearer ${token}` });
+        headers: { Authorization: `Bearer ${token}` }
+      });
       
       // Set clock-out success data
       const timestamp = response.data?.timestamp || new Date().toISOString();
