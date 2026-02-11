@@ -54,22 +54,6 @@ const StaffProfile = () => {
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [showMessagesModal, setShowMessagesModal] = useState(false);
   const [selectedShift, setSelectedShift] = useState(null);
-    reason: ''
-  });
-  const [dayFormData, setDayFormData] = useState({
-    request_type: 'day_off',
-    requested_date: '',
-    reason: ''
-  });
-  const [swapFormData, setSwapFormData] = useState({
-    swapType: 'open',
-    targetColleague: '',
-    reason: '',
-    messageToManager: ''
-  });
-  const [formSubmitting, setFormSubmitting] = useState(false);
-
-  const IDLE_TIMEOUT = 60;
 
   useEffect(() => {
     if (!user || !token) {
@@ -78,34 +62,6 @@ const StaffProfile = () => {
     }
     fetchAllData();
   }, [user, token, navigate]);
-
-  // Idle timer
-  useEffect(() => {
-    const resetIdleTimer = () => setIdleTime(0);
-    
-    window.addEventListener('mousemove', resetIdleTimer);
-    window.addEventListener('keydown', resetIdleTimer);
-    window.addEventListener('click', resetIdleTimer);
-    window.addEventListener('touchstart', resetIdleTimer);
-    
-    const idleInterval = setInterval(() => {
-      setIdleTime(prev => {
-        const newTime = prev + 1;
-        if (newTime >= IDLE_TIMEOUT) {
-          handleLogout();
-        }
-        return newTime;
-      });
-    }, 1000);
-    
-    return () => {
-      window.removeEventListener('mousemove', resetIdleTimer);
-      window.removeEventListener('keydown', resetIdleTimer);
-      window.removeEventListener('click', resetIdleTimer);
-      window.removeEventListener('touchstart', resetIdleTimer);
-      clearInterval(idleInterval);
-    };
-  }, []);
 
   const fetchAllData = async () => {
     setLoading(true);
