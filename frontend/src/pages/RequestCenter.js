@@ -495,8 +495,10 @@ const RequestCenter = () => {
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
+              <label htmlFor="sick_start_date" className="block text-sm font-medium text-gray-700 mb-2">Start Date *</label>
               <input
+                id="sick_start_date"
+                name="start_date"
                 type="date"
                 value={formData.start_date || today}
                 onChange={(e) => setFormData({ ...formData, start_date: e.target.value })}
@@ -508,8 +510,10 @@ const RequestCenter = () => {
             </div>
             
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">Expected Return</label>
+              <label htmlFor="sick_end_date" className="block text-sm font-medium text-gray-700 mb-2">Expected Return</label>
               <input
+                id="sick_end_date"
+                name="end_date"
                 type="date"
                 value={formData.end_date || ''}
                 onChange={(e) => setFormData({ ...formData, end_date: e.target.value })}
@@ -522,8 +526,10 @@ const RequestCenter = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Symptoms / Reason</label>
+            <label htmlFor="sick_symptoms" className="block text-sm font-medium text-gray-700 mb-2">Symptoms / Reason</label>
             <textarea
+              id="sick_symptoms"
+              name="symptoms"
               value={formData.symptoms || ''}
               onChange={(e) => setFormData({ ...formData, symptoms: e.target.value })}
               placeholder="Brief description (e.g., flu, stomach bug)..."
@@ -537,6 +543,7 @@ const RequestCenter = () => {
             <input
               type="checkbox"
               id="doctor_note"
+              name="doctor_note"
               checked={formData.doctor_note || false}
               onChange={(e) => setFormData({ ...formData, doctor_note: e.target.checked })}
               className="w-5 h-5 rounded border-gray-300 text-red-500 focus:ring-red-500"
@@ -548,8 +555,10 @@ const RequestCenter = () => {
           </div>
           
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
+            <label htmlFor="sick_notes" className="block text-sm font-medium text-gray-700 mb-2">Additional Notes</label>
             <textarea
+              id="sick_notes"
+              name="notes"
               value={formData.notes || ''}
               onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
               placeholder="Any additional information for your manager..."
