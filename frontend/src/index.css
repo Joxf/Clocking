@@ -487,6 +487,24 @@ html.dark body {
   margin-bottom: 8px;
 }
 
+/* Dark mode kiosk styles */
+.dark .kiosk-container {
+  background-color: #2C2C2C;
+}
+
+.dark .kiosk-card {
+  background: #454545;
+  border-color: #5B5B5B;
+}
+
+.dark .kiosk-title {
+  color: #F5F5F5;
+}
+
+.dark .kiosk-subtitle {
+  color: #ADADAD;
+}
+
 .kiosk-subtitle {
   font-size: 16px;
   color: var(--frappe-text-light);
