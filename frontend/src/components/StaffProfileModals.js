@@ -265,7 +265,7 @@ export const ShiftSwapModal = memo(({ token, selectedShift, colleagues, onClose,
             <label className="block text-sm font-medium text-gray-700 mb-2">How would you like to swap?</label>
             <div className="space-y-2">
               <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer ${swapType === 'open' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
-                <input type="radio" name="swapType" value="open" checked={swapType === 'open'} onChange={(e) => setSwapType(e.target.value)} />
+                <input type="radio" id="swap_type_open" name="swapType" value="open" checked={swapType === 'open'} onChange={(e) => setSwapType(e.target.value)} />
                 <Users size={20} className="text-blue-600" />
                 <div>
                   <p className="font-medium">Post Open Request</p>
@@ -274,7 +274,7 @@ export const ShiftSwapModal = memo(({ token, selectedShift, colleagues, onClose,
               </label>
               
               <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer ${swapType === 'direct' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
-                <input type="radio" name="swapType" value="direct" checked={swapType === 'direct'} onChange={(e) => setSwapType(e.target.value)} />
+                <input type="radio" id="swap_type_direct" name="swapType" value="direct" checked={swapType === 'direct'} onChange={(e) => setSwapType(e.target.value)} />
                 <UserCheck size={20} className="text-green-600" />
                 <div>
                   <p className="font-medium">Request Specific Colleague</p>
@@ -283,7 +283,7 @@ export const ShiftSwapModal = memo(({ token, selectedShift, colleagues, onClose,
               </label>
               
               <label className={`flex items-center gap-3 p-3 border rounded-lg cursor-pointer ${swapType === 'manager' ? 'border-blue-500 bg-blue-50' : 'border-gray-200'}`}>
-                <input type="radio" name="swapType" value="manager" checked={swapType === 'manager'} onChange={(e) => setSwapType(e.target.value)} />
+                <input type="radio" id="swap_type_manager" name="swapType" value="manager" checked={swapType === 'manager'} onChange={(e) => setSwapType(e.target.value)} />
                 <MessageSquare size={20} className="text-purple-600" />
                 <div>
                   <p className="font-medium">Contact Manager</p>
@@ -295,8 +295,8 @@ export const ShiftSwapModal = memo(({ token, selectedShift, colleagues, onClose,
 
           {swapType === 'direct' && (
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Select Colleague</label>
-              <select value={targetColleague} onChange={(e) => setTargetColleague(e.target.value)} className="frappe-input" required>
+              <label htmlFor="target_colleague" className="block text-sm font-medium text-gray-700 mb-1">Select Colleague</label>
+              <select id="target_colleague" name="target_colleague" value={targetColleague} onChange={(e) => setTargetColleague(e.target.value)} className="frappe-input" required>
                 <option value="">Choose a colleague...</option>
                 {colleagues.map((c) => (
                   <option key={c.id} value={c.id}>{c.first_name} {c.last_name} ({getJobTitleDisplay(c.job_title)})</option>
@@ -307,14 +307,14 @@ export const ShiftSwapModal = memo(({ token, selectedShift, colleagues, onClose,
 
           {swapType === 'manager' && (
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">Message to Manager</label>
-              <textarea value={messageToManager} onChange={(e) => setMessageToManager(e.target.value)} className="frappe-input" rows={3} placeholder="Explain your situation and what help you need..." required />
+              <label htmlFor="message_to_manager" className="block text-sm font-medium text-gray-700 mb-1">Message to Manager</label>
+              <textarea id="message_to_manager" name="message_to_manager" value={messageToManager} onChange={(e) => setMessageToManager(e.target.value)} className="frappe-input" rows={3} placeholder="Explain your situation and what help you need..." required />
             </div>
           )}
 
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Reason for swap</label>
-            <textarea value={reason} onChange={(e) => setReason(e.target.value)} className="frappe-input" rows={2} placeholder="Why do you need to swap this shift?" />
+            <label htmlFor="swap_reason" className="block text-sm font-medium text-gray-700 mb-1">Reason for swap</label>
+            <textarea id="swap_reason" name="reason" value={reason} onChange={(e) => setReason(e.target.value)} className="frappe-input" rows={2} placeholder="Why do you need to swap this shift?" />
           </div>
 
           <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-lg mb-4 text-sm text-yellow-700">
