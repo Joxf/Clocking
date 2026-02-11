@@ -47,7 +47,7 @@ export const LeaveRequestModal = memo(({ token, onClose, onSuccess }) => {
       className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" 
       onClick={handleBackdropClick}
     >
-      <div ref={modalRef} className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
+      <div className="bg-white rounded-lg shadow-xl max-w-md w-full mx-4 p-6">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Request Leave</h2>
         <form onSubmit={handleSubmit}>
           <div className="space-y-4">
