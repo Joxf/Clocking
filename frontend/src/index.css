@@ -286,6 +286,32 @@ html.dark body {
   color: var(--frappe-primary);
 }
 
+/* Dark mode badge styles */
+.dark .frappe-badge-success {
+  background-color: #2D4A3E;
+  color: #34D399;
+}
+
+.dark .frappe-badge-warning {
+  background-color: #4A4320;
+  color: #FBBF24;
+}
+
+.dark .frappe-badge-error {
+  background-color: #4A2828;
+  color: #F87171;
+}
+
+.dark .frappe-badge-gray {
+  background-color: #454545;
+  color: #ADADAD;
+}
+
+.dark .frappe-badge-primary {
+  background-color: #3B5B5B;
+  color: #60A5FA;
+}
+
 /* Frappe-style table */
 .frappe-table {
   width: 100%;
