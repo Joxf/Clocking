@@ -80,26 +80,32 @@ const LateArrivalsReport = () => {
   };
 
   const exportToCSV = () => {
-    if (!reportData?.late_arrivals) return;
+    if (!reportData || !reportData.late_arrivals || reportData.late_arrivals.length === 0) return;
     
-    const headers = ['Date', 'Employee ID', 'Employee Name', 'Job Title', 'Scheduled Start', 'Actual Clock-In', 'Minutes Late', 'Reason'];
-    const rows = reportData.late_arrivals.map(a => [
-      a.date,
-      a.employee_id,
-      a.employee_name,
-      a.job_title,
-      a.scheduled_start,
-      a.actual_clock_in,
-      a.minutes_late,
-      a.reason || ''
-    ]);
+    const headerRow = 'Date,Employee ID,Employee Name,Job Title,Scheduled Start,Actual Clock-In,Minutes Late,Reason';
+    const dataRows = [];
     
-    const csvContent = [headers, ...rows].map(row => row.map(cell => `"${cell}"`).join(',')).join('\n');
+    for (let i = 0; i < reportData.late_arrivals.length; i++) {
+      const a = reportData.late_arrivals[i];
+      const row = [
+        `"${a.date || ''}"`,
+        `"${a.employee_id || ''}"`,
+        `"${a.employee_name || ''}"`,
+        `"${a.job_title || ''}"`,
+        `"${a.scheduled_start || ''}"`,
+        `"${a.actual_clock_in || ''}"`,
+        `"${a.minutes_late || 0}"`,
+        `"${(a.reason || '').replace(/"/g, '""')}"`
+      ].join(',');
+      dataRows.push(row);
+    }
+    
+    const csvContent = [headerRow, ...dataRows].join('\n');
     const blob = new Blob([csvContent], { type: 'text/csv' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `late-arrivals-${year}-${month.toString().padStart(2, '0')}.csv`;
+    link.download = `late-arrivals-${year}-${String(month).padStart(2, '0')}.csv`;
     link.click();
     URL.revokeObjectURL(url);
   };
