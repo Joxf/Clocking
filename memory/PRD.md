@@ -171,15 +171,19 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 
 ## Bug Fixes
 
-### Modal Form Reset Bug (Fixed - Feb 11, 2026)
-- **Issue:** Forms in modals on Staff Profile page kept resetting/refreshing, preventing data entry
-- **Root Cause:** Parent component re-renders invalidated React.memo optimization because callback functions (onClose, onSuccess) were recreated on each render
-- **Fix Applied:** 
-  - Added useCallback hooks for modal callbacks (closeLeaveModal, closeDayRequestModal, closeSwapModal, closeMessagesModal)
-  - Memoized fetchAllData, getJobTitleDisplay, formatDate functions
-  - Wrapped NotificationBell component with React.memo
-- **Files Modified:** StaffProfile.js, NotificationBell.js
-- **Verification:** All form fields (text input, date pickers, dropdowns) persist values after 10+ seconds
+### Modal Form Reset Bug (Attempted Fix - Feb 11, 2026)
+- **Issue:** Forms in modals on Staff Profile page kept resetting/refreshing
+- **Status:** Bug still present - user reports forms still not working
+- **Attempted fixes:** useCallback for callbacks, React.memo on components, added id/name to form fields
+- **Note:** User chose to move on to new feature development
+
+### Return to Work (RTW) Workflow (Complete - Feb 11, 2026)
+- **Trigger:** When manager marks sick leave as returned, RTW form is auto-created
+- **RTW Register:** List of all RTW forms accessible from Manager Dashboard header
+- **RTW Form:** Two sections (Manager & Staff) with Yes/No questions
+- **Status tracking:** Pending, In Progress, Completed, Overdue
+- **Partial completion:** Either party can complete first, status updates accordingly
+- **Triggers:** RTW counter in manager header, RTW trigger banner on staff profile
 
 ## Backlog Complete - All Features Implemented!
 
