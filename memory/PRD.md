@@ -185,6 +185,13 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 - **Partial completion:** Either party can complete first, status updates accordingly
 - **Triggers:** RTW counter in manager header, RTW trigger banner on staff profile
 
+### Shift Preferences (Complete - Feb 11, 2026)
+- **New Employee Field:** `shift_preferences` array added to Employee model
+- **Available Options:** Flexible, Earlies Only, Lates Only, Nights Only, No Nights, Weekdays Only, Weekends Only, Long Days Preferred
+- **UI:** Toggle pill buttons in Add/Edit Employee forms
+- **Display:** Shift Pref column in Staff List table with color-coded badges
+- **Future Use:** Foundation for scheduling optimization and metrics
+
 ## Backlog Complete - All Features Implemented!
 
 ### P2 -- Sick Leave Recording
