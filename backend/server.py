@@ -210,6 +210,44 @@ class Notification(BaseModel):
     is_read: bool = False
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
+class ReturnToWork(BaseModel):
+    model_config = ConfigDict(extra="ignore")
+    id: str = Field(default_factory=lambda: str(uuid.uuid4()))
+    care_home_id: str
+    employee_id: str
+    employee_name: str
+    sick_leave_id: str
+    return_date: str  # Date string YYYY-MM-DD
+    due_date: str  # When RTW should be completed (usually return_date)
+    status: str = "pending"  # pending, in_progress, completed, overdue
+    # Manager section responses
+    manager_completed: bool = False
+    manager_completed_by: Optional[str] = None
+    manager_completed_at: Optional[datetime] = None
+    mgr_fit_to_return: Optional[bool] = None
+    mgr_absence_discussed: Optional[bool] = None
+    mgr_affects_safe_working: Optional[bool] = None
+    mgr_adjustments_needed: Optional[bool] = None
+    mgr_adjustment_types: List[str] = Field(default_factory=list)  # phased_return, reduced_hours, modified_duties, extra_breaks, workstation_change, temp_reassignment
+    mgr_occupational_health: Optional[bool] = None
+    mgr_work_related: Optional[bool] = None
+    mgr_incident_followup: Optional[bool] = None
+    mgr_followup_required: Optional[bool] = None
+    mgr_followup_timeframe: Optional[str] = None  # 1_week, 2_weeks, 4_weeks
+    # Staff section responses
+    staff_completed: bool = False
+    staff_completed_at: Optional[datetime] = None
+    staff_fit_to_return: Optional[bool] = None
+    staff_fully_recovered: Optional[bool] = None
+    staff_ongoing_symptoms: Optional[bool] = None
+    staff_feels_safe: Optional[bool] = None
+    staff_needs_adjustments: Optional[bool] = None
+    staff_adjustment_types: List[str] = Field(default_factory=list)
+    staff_understands_reporting: Optional[bool] = None
+    staff_agrees_outcome: Optional[bool] = None
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+
 # ============ REQUEST/RESPONSE MODELS ============
 
 class QRValidateRequest(BaseModel):
