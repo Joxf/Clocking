@@ -227,13 +227,16 @@ export const ShiftSwapModal = memo(({ token, selectedShift, colleagues, onClose,
     }
   };
 
-  const handleContainerClick = (e) => {
-    e.stopPropagation();
+  // Handle backdrop click - only close if clicking exactly on the backdrop
+  const handleBackdropClick = (e) => {
+    if (e.target === e.currentTarget) {
+      onClose();
+    }
   };
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={onClose}>
-      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 p-6 max-h-[90vh] overflow-y-auto" onClick={handleContainerClick}>
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50" onClick={handleBackdropClick}>
+      <div className="bg-white rounded-lg shadow-xl max-w-lg w-full mx-4 p-6 max-h-[90vh] overflow-y-auto">
         <h2 className="text-xl font-semibold text-gray-900 mb-4">Request Shift Swap</h2>
         
         {selectedShift && (
