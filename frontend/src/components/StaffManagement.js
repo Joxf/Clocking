@@ -184,6 +184,22 @@ const StaffManagement = ({ token, onOpenNotes }) => {
                     <span className={`text-[10px] ${isAgency ? 'text-orange-600 font-medium' : 'text-gray-500'}`}>{isAgency ? 'Agency' : empType === 'bank' ? 'Bank' : 'Perm'}</span>
                   </td>
                   <td className="px-3 py-2 text-center text-gray-600">{contract}h</td>
+                  <td className="px-3 py-2">
+                    <div className="flex flex-wrap gap-1">
+                      {(emp.shift_preferences || []).length > 0 ? (
+                        emp.shift_preferences.slice(0, 2).map(pref => (
+                          <span key={pref} className={`px-1.5 py-0.5 rounded text-[9px] font-medium ${PREFERENCE_BADGE[pref] || 'bg-gray-100 text-gray-600'}`}>
+                            {SHIFT_PREFERENCE_OPTIONS.find(o => o.value === pref)?.label.replace(' Only', '').replace(' Preferred', '') || pref}
+                          </span>
+                        ))
+                      ) : (
+                        <span className="text-[10px] text-gray-400">—</span>
+                      )}
+                      {(emp.shift_preferences || []).length > 2 && (
+                        <span className="text-[9px] text-gray-400">+{emp.shift_preferences.length - 2}</span>
+                      )}
+                    </div>
+                  </td>
                   <td className="px-3 py-2 text-center">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${isActive ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-600'}`}>
                       {isActive ? 'Active' : 'Inactive'}
