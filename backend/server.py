@@ -1334,6 +1334,142 @@ async def get_wtd_alerts(year: int, month: int, current_user: dict = Depends(get
 
     return {"year": year, "month": month, "alerts": alerts}
 
+@api_router.get("/attendance/late-arrivals-report")
+async def get_late_arrivals_report(
+    year: int, 
+    month: int, 
+    current_user: dict = Depends(get_current_user)
+):
+    """Late Arrivals Report for managers - shows all late clock-ins for the month"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    import calendar as cal_mod
+    days_in_month = cal_mod.monthrange(year, month)[1]
+    first = f"{year}-{month:02d}-01"
+    last = f"{year}-{month:02d}-{days_in_month:02d}"
+    
+    care_home_id = current_user["care_home_id"]
+    
+    # Get all employees for mapping
+    employees = await db.employees.find(
+        {"care_home_id": care_home_id},
+        {"_id": 0, "id": 1, "employee_id": 1, "first_name": 1, "last_name": 1, "job_title": 1}
+    ).to_list(500)
+    emp_map = {e["id"]: e for e in employees}
+    
+    # Get all shifts for the month
+    shifts = await db.shifts.find({
+        "care_home_id": care_home_id,
+        "shift_date": {"$gte": first, "$lte": last},
+        "status": {"$in": ["scheduled", "completed"]}
+    }, {"_id": 0}).to_list(5000)
+    
+    # Create shift lookup by employee_id and date
+    shift_map = {}
+    for s in shifts:
+        key = f"{s['employee_id']}_{s['shift_date']}"
+        shift_map[key] = s
+    
+    # Get all attendance records for the month
+    attendance_records = await db.attendance.find({
+        "care_home_id": care_home_id,
+        "created_at": {"$gte": first, "$lte": last + "T23:59:59"}
+    }, {"_id": 0}).to_list(5000)
+    
+    # Filter and build late arrivals report
+    late_arrivals = []
+    for att in attendance_records:
+        if not att.get("clock_in"):
+            continue
+        
+        emp_id = att.get("employee_id")
+        emp = emp_map.get(emp_id, {})
+        
+        # Parse clock-in time
+        try:
+            clock_in = datetime.fromisoformat(att["clock_in"].replace("Z", "+00:00"))
+            date_str = clock_in.strftime("%Y-%m-%d")
+        except (ValueError, TypeError):
+            continue
+        
+        # Find matching shift
+        shift_key = f"{emp_id}_{date_str}"
+        shift = shift_map.get(shift_key)
+        
+        # Determine if late
+        is_late = False
+        minutes_late = 0
+        shift_start_str = None
+        
+        if att.get("status") == "late" or att.get("late_early_type") == "late":
+            is_late = True
+        elif shift:
+            # Calculate if late based on shift start time
+            try:
+                shift_start_str = shift.get("start_time")
+                shift_start = datetime.fromisoformat(f"{date_str}T{shift_start_str}:00+00:00")
+                diff = (clock_in - shift_start).total_seconds() / 60
+                if diff > 5:  # 5 minutes grace period
+                    is_late = True
+                    minutes_late = int(diff)
+            except (ValueError, TypeError):
+                pass
+        
+        if is_late:
+            # Calculate minutes late if we have shift start
+            if shift and not minutes_late:
+                try:
+                    shift_start_str = shift.get("start_time")
+                    shift_start = datetime.fromisoformat(f"{date_str}T{shift_start_str}:00+00:00")
+                    minutes_late = int((clock_in - shift_start).total_seconds() / 60)
+                except (ValueError, TypeError):
+                    pass
+            
+            late_arrivals.append({
+                "date": date_str,
+                "employee_id": emp.get("employee_id", ""),
+                "employee_name": f"{emp.get('first_name', '')} {emp.get('last_name', '')}",
+                "job_title": emp.get("job_title", ""),
+                "scheduled_start": shift_start_str or "N/A",
+                "actual_clock_in": clock_in.strftime("%H:%M"),
+                "minutes_late": minutes_late,
+                "reason": att.get("late_early_reason", ""),
+                "shift_type": shift.get("template", "") if shift else ""
+            })
+    
+    # Sort by date descending, then by minutes late descending
+    late_arrivals.sort(key=lambda x: (x["date"], -x["minutes_late"]), reverse=True)
+    
+    # Calculate summary stats
+    unique_employees = set(a["employee_id"] for a in late_arrivals)
+    total_late_count = len(late_arrivals)
+    avg_minutes_late = sum(a["minutes_late"] for a in late_arrivals) / total_late_count if total_late_count > 0 else 0
+    
+    # Count by employee for repeat offenders
+    employee_counts = {}
+    for a in late_arrivals:
+        emp_id = a["employee_id"]
+        employee_counts[emp_id] = employee_counts.get(emp_id, 0) + 1
+    
+    repeat_offenders = [
+        {"employee_id": emp_id, "count": count, "name": emp_map.get(emp_id, {}).get("first_name", "") + " " + emp_map.get(emp_id, {}).get("last_name", "")}
+        for emp_id, count in employee_counts.items() if count >= 3
+    ]
+    repeat_offenders.sort(key=lambda x: -x["count"])
+    
+    return {
+        "year": year,
+        "month": month,
+        "summary": {
+            "total_late_arrivals": total_late_count,
+            "unique_employees": len(unique_employees),
+            "average_minutes_late": round(avg_minutes_late, 1),
+            "repeat_offenders": repeat_offenders[:10]  # Top 10
+        },
+        "late_arrivals": late_arrivals
+    }
+
 # ============ EMPLOYEE ROUTES ============
 
 @api_router.get("/employees")
