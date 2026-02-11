@@ -52,6 +52,26 @@ const StaffProfile = () => {
   const [showSwapModal, setShowSwapModal] = useState(false);
   const [showMessagesModal, setShowMessagesModal] = useState(false);
   const [selectedShift, setSelectedShift] = useState(null);
+  
+  // Form data states (lifted to parent to prevent reset)
+  const [leaveFormData, setLeaveFormData] = useState({
+    leave_type: 'annual',
+    start_date: '',
+    end_date: '',
+    reason: ''
+  });
+  const [dayFormData, setDayFormData] = useState({
+    request_type: 'day_off',
+    requested_date: '',
+    reason: ''
+  });
+  const [swapFormData, setSwapFormData] = useState({
+    swapType: 'open',
+    targetColleague: '',
+    reason: '',
+    messageToManager: ''
+  });
+  const [formSubmitting, setFormSubmitting] = useState(false);
 
   const IDLE_TIMEOUT = 60;
 
