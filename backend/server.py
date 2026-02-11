@@ -3439,6 +3439,7 @@ class CreateEmployeeRequest(BaseModel):
     job_title: str
     employment_type: str = "permanent"
     contract_hours: float = 36.0
+    shift_preferences: List[str] = Field(default_factory=list)
 
 class UpdateEmployeeRequest(BaseModel):
     first_name: Optional[str] = None
@@ -3448,6 +3449,7 @@ class UpdateEmployeeRequest(BaseModel):
     job_title: Optional[str] = None
     employment_type: Optional[str] = None
     contract_hours: Optional[float] = None
+    shift_preferences: Optional[List[str]] = None
 
 def generate_employee_id(job_title, existing_ids):
     """Generate a sequential employee ID like NRS003, CAR005"""
