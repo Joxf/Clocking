@@ -61,15 +61,8 @@ const StaffProfile = () => {
   const closeSwapModal = useCallback(() => { setShowSwapModal(false); setSelectedShift(null); }, []);
   const closeMessagesModal = useCallback(() => setShowMessagesModal(false), []);
 
-  useEffect(() => {
-    if (!user || !token) {
-      navigate('/');
-      return;
-    }
-    fetchAllData();
-  }, [user, token, navigate]);
-
-  const fetchAllData = async () => {
+  // Memoized fetchAllData to use as stable onSuccess callback
+  const fetchAllData = useCallback(async () => {
     setLoading(true);
     try {
       const [profileRes, leaveRes, dayRes, swapRes, colleaguesRes] = await Promise.all([
@@ -90,7 +83,15 @@ const StaffProfile = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    if (!user || !token) {
+      navigate('/');
+      return;
+    }
+    fetchAllData();
+  }, [user, token, navigate, fetchAllData]);
 
   const handleLogout = useCallback(async () => {
     await logout();
