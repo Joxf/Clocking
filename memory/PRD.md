@@ -73,6 +73,7 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 - `/app/frontend/src/components/TeamCalendar.js` -- Team availability
 - `/app/frontend/src/components/NotificationBell.js` -- Notifications dropdown
 - `/app/frontend/src/components/MessagesInbox.js` -- Internal messaging
+- `/app/frontend/src/pages/LateArrivalsReport.js` -- Late Arrivals Report for managers
 
 ## Backlog
 
