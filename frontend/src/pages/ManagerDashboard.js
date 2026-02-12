@@ -293,7 +293,7 @@ const ManagerDashboard = () => {
         </button>
 
         <div className="frappe-sidebar-section">Reports</div>
-        <button onClick={() => navigate('/manager/late-arrivals')} className="frappe-sidebar-item w-full text-left" data-testid="late-arrivals-nav">
+        <button onClick={() => setActiveTab('late-arrivals')} className={`frappe-sidebar-item w-full text-left ${activeTab === 'late-arrivals' ? 'active' : ''}`} data-testid="late-arrivals-nav">
           <FileText size={18} /><span>Late Arrivals</span>
         </button>
 
