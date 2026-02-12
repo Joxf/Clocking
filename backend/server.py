@@ -4104,6 +4104,48 @@ async def seed_planner_month(year: int, month: int, current_user: dict = Depends
 
     return {"success": True, "shifts_created": created}
 
+@api_router.post("/planner/assign-random-preferences")
+async def assign_random_preferences(current_user: dict = Depends(get_current_user)):
+    """Assign random shift preferences to employees who don't have any"""
+    if current_user["role"] not in ("manager", "admin"):
+        raise HTTPException(status_code=403, detail="Manager access required")
+    
+    import random
+    
+    # Available preferences
+    preference_options = [
+        ["flexible"],
+        ["earlies_only"],
+        ["lates_only"],
+        ["no_nights"],
+        ["nights_only"],
+        ["weekdays_only"],
+        ["weekends_only"],
+        ["flexible", "no_nights"],
+        ["flexible"],  # Higher chance of flexible
+        ["flexible"],
+    ]
+    
+    # Get all employees without preferences
+    employees = await db.employees.find(
+        {"status": "active", "role": "staff"},
+        {"_id": 0, "id": 1, "shift_preferences": 1, "first_name": 1, "last_name": 1}
+    ).to_list(500)
+    
+    updated_count = 0
+    for emp in employees:
+        current_prefs = emp.get("shift_preferences", [])
+        if not current_prefs or len(current_prefs) == 0:
+            # Assign random preferences
+            new_prefs = random.choice(preference_options)
+            await db.employees.update_one(
+                {"id": emp["id"]},
+                {"$set": {"shift_preferences": new_prefs}}
+            )
+            updated_count += 1
+    
+    return {"success": True, "employees_updated": updated_count}
+
 # ============ PHASE 5A: STAFF MANAGEMENT ============
 
 class CreateEmployeeRequest(BaseModel):
