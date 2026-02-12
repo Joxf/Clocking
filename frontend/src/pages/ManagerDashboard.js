@@ -10,6 +10,7 @@ import OperationalOverview from '../components/OperationalOverview';
 import StaffManagement from '../components/StaffManagement';
 import { RTWPendingCounter, RTWRegister } from '../components/RTWComponents';
 import ThemeToggle from '../components/ThemeToggle';
+import LateArrivalsTab from '../components/LateArrivalsTab';
 import {
   LayoutDashboard,
   Users,
