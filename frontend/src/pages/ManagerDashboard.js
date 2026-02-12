@@ -560,6 +560,11 @@ const ManagerDashboard = () => {
         {activeTab === 'operational' && (
           <OperationalOverview token={token} />
         )}
+
+        {/* Late Arrivals Tab */}
+        {activeTab === 'late-arrivals' && (
+          <LateArrivalsTab token={token} />
+        )}
       </main>
 
       {showMessagesModal && <MessagesInbox onClose={() => setShowMessagesModal(false)} />}
