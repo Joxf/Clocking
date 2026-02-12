@@ -261,6 +261,7 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
 - **Persistence:** User preference saved to localStorage, persists across sessions
 - **CSS Variables:** Complete dark mode color palette in index.css with Tailwind dark: variant support
 - **System Preference:** Falls back to system preference if user hasn't manually set theme
+- **New Grayscale Palette (Feb 12, 2026):** Updated dark mode with user-requested colors (#2C2C2C, #454545, #5B5B5B, #7E7E7E, #ADADAD, #DCDCDC, #E8E8E8, #F5F5F5)
 
 ### Late/Early Clock-In Reason Dialogs (Complete - Feb 12, 2026)
 - **LateEarlyReasonDialog Component:** Modal dialog shown when staff clocks in late or early
@@ -272,6 +273,22 @@ Build a "CareHome Clocking system" by cloning and extending Frappe HRMS. QR + PI
   - Customizable reason lists with add/edit/delete
   - Free text option for "Other" reasons
 - **Logic:** Compares current time vs scheduled shift start time with configured grace periods
+- **API Integration (Feb 12, 2026):**
+  - Clock-in API now accepts `late_early_reason` and `late_early_type` fields
+  - AttendanceRecord model stores reasons and type ('late' or 'early')
+  - Manager notifications created when staff clocks in late (if enabled in Control Preferences)
+
+### Late Arrivals Report (Complete - Feb 12, 2026)
+- **New Report Page:** `/manager/late-arrivals` accessible by Manager/Admin
+- **Summary Cards:** Total Late Arrivals, Employees Affected, Avg. Minutes Late
+- **Month Navigation:** Previous/next month buttons with month/year display
+- **Filters:** Search by name/employee ID, filter by job title
+- **Data Table:** Date, Employee, Job Title, Scheduled Time, Actual Clock-In, Late By (minutes), Reason
+- **Repeat Offenders:** Shows employees with 3+ late arrivals as warning badges
+- **Export CSV:** Download late arrivals data as CSV file
+- **Dark Mode:** Fully styled with new grayscale palette
+- **Backend Endpoint:** GET `/api/attendance/late-arrivals-report?year=&month=`
+- **Navigation:** Accessible from Manager Dashboard sidebar under "Reports" section
 
 ## Backlog Complete - All Features Implemented!
 
