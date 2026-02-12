@@ -239,13 +239,18 @@ class TestManagerNotifications(TestAuthentication):
         
         if response.status_code == 200:
             data = response.json()
-            login_settings = data.get("login", {})
+            # API returns nested preferences structure
+            prefs = data.get("preferences", data)
+            login_settings = prefs.get("login", {})
             late_early_settings = login_settings.get("late_early", {})
             
             notify_on_late = late_early_settings.get("notify_manager_on_late")
             print(f"notify_manager_on_late setting: {notify_on_late}")
             
-            assert "notify_manager_on_late" in late_early_settings or response.status_code == 404
+            assert "notify_manager_on_late" in late_early_settings, \
+                f"Expected 'notify_manager_on_late' in late_early settings, got keys: {list(late_early_settings.keys())}"
+            assert notify_on_late == True, f"notify_manager_on_late should be True, got {notify_on_late}"
+            print("✓ notify_manager_on_late setting exists and is True")
         else:
             # Endpoint might not exist yet
             print(f"Control preferences endpoint returned: {response.status_code}")
