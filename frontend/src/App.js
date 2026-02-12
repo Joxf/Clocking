@@ -17,7 +17,6 @@ import AdminDashboard from "./pages/AdminDashboard";
 import MobileAuth from "./pages/MobileAuth";
 import StaffPlanner from "./pages/StaffPlanner";
 import ControlPreferences from "./pages/ControlPreferences";
-import LateArrivalsReport from "./pages/LateArrivalsReport";
 
 // Protected Route Component
 const ProtectedRoute = ({ children, allowedRoles }) => {
