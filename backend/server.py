@@ -4081,12 +4081,36 @@ async def seed_planner_month(year: int, month: int, current_user: dict = Depends
     created = 0
 
     for emp_idx, emp in enumerate(staff):
+        emp_prefs = emp.get("shift_preferences", [])
+        
+        # Determine which templates are allowed based on preferences
+        allowed_templates = templates_list.copy()
+        if emp_prefs:
+            if "nights_only" in emp_prefs:
+                allowed_templates = ["night"]
+            elif "earlies_only" in emp_prefs:
+                allowed_templates = ["early"]
+            elif "lates_only" in emp_prefs:
+                allowed_templates = ["late"]
+            elif "no_nights" in emp_prefs:
+                allowed_templates = ["early", "late", "long_day"]
+        
         for day in range(1, days_in_month + 1):
+            day_of_week = (datetime(year, month, day).weekday() + 1) % 7  # 0=Sun, 6=Sat
+            is_weekend = day_of_week in (0, 6)
+            
+            # Check weekend/weekday preferences
+            if emp_prefs:
+                if "weekends_only" in emp_prefs and not is_weekend:
+                    continue
+                if "weekdays_only" in emp_prefs and is_weekend:
+                    continue
+            
             # Give each staff 4-5 shifts per week (skip ~2 days)
             if (day + emp_idx) % 7 in (0, 6):
                 continue
             date_str = f"{year}-{month:02d}-{day:02d}"
-            tpl_key = templates_list[(emp_idx + day) % len(templates_list)]
+            tpl_key = allowed_templates[(emp_idx + day) % len(allowed_templates)]
             tpl = SHIFT_TEMPLATES[tpl_key]
             shift = Shift(
                 employee_id=emp["id"],
