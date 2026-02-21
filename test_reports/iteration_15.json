@@ -1,0 +1,141 @@
+{
+  "summary": "Frontend Testing Complete - All 3 features verified: Back arrow in Control Preferences, Dark mode with theme toggle, and Late/Early reason dialog configuration.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": []
+  },
+
+  "passed_tests": {
+    "back_arrow_control_preferences": [
+      "Back arrow button (data-testid='back-btn') present on Control Preferences page",
+      "Back button uses ArrowLeft icon (replacing old Home button)",
+      "Click navigates back (uses navigate(-1))",
+      "Navigation returns to /manager dashboard correctly"
+    ],
+    "theme_toggle_scan_login": [
+      "Theme toggle button (data-testid='theme-toggle') visible on ScanLogin page",
+      "Toggle shows Moon icon in light mode, Sun icon in dark mode",
+      "Click toggles dark mode class on document",
+      "Dark mode preference saved to localStorage"
+    ],
+    "theme_toggle_manager_dashboard": [
+      "Theme toggle button visible in Manager Dashboard header",
+      "Toggle works correctly - switches between light/dark mode",
+      "Dark mode styling applied to sidebar, cards, table rows"
+    ],
+    "theme_toggle_kiosk_clock_screen": [
+      "Theme toggle button visible in KioskClockScreen header",
+      "Toggle works correctly - background changes to slate-900",
+      "User cards, shift info styled correctly in dark mode"
+    ],
+    "dark_mode_persistence": [
+      "localStorage.getItem('darkMode') returns 'true' when enabled",
+      "Dark mode persists after page reload",
+      "CSS variables correctly update: --frappe-bg: #0F172A, --frappe-surface: #1E293B"
+    ],
+    "dark_mode_css_variables": [
+      "Light mode variables defined in :root",
+      "Dark mode variables defined in .dark selector",
+      "CSS transitions applied (0.3s ease) for smooth theme switching",
+      "Shadcn UI variables also updated for dark mode"
+    ],
+    "late_early_reason_configuration": [
+      "Late & Early Clock-In Controls section in Login tab",
+      "Enable late reason selection toggle present",
+      "Grace period before marked late setting (configurable minutes)",
+      "Late reason is mandatory toggle present",
+      "Notify manager when staff is late toggle present",
+      "Early Clock-In settings mirrored with same options",
+      "Late / Early Reason Management section (expandable)",
+      "Maximum reasons displayed setting",
+      "Enable free text option toggle",
+      "Late Reasons list with add/edit/delete functionality",
+      "Early Clock-In Reasons list with same functionality"
+    ],
+    "late_early_dialog_component": [
+      "LateEarlyReasonDialog component exists in KioskClockScreen.js",
+      "Dialog shows different styles for late (red) vs early (blue)",
+      "Reason selection buttons displayed from configured list",
+      "Free text textarea shown when 'Other' option selected",
+      "Mandatory reason enforced via disabled submit button",
+      "Skip button available when reason not mandatory"
+    ]
+  },
+
+  "features_verified": {
+    "back_arrow_in_control_preferences": {
+      "status": "WORKING",
+      "data_testid": "back-btn",
+      "notes": "ArrowLeft icon replaces Home button, uses navigate(-1) for proper back navigation"
+    },
+    "theme_toggle_on_scan_login": {
+      "status": "WORKING",
+      "data_testid": "theme-toggle",
+      "notes": "Moon/Sun icons, toggles dark class on documentElement"
+    },
+    "theme_toggle_on_manager_dashboard": {
+      "status": "WORKING",
+      "data_testid": "theme-toggle",
+      "notes": "Present in header alongside notification bell and RTW counter"
+    },
+    "theme_toggle_on_kiosk_clock_screen": {
+      "status": "WORKING",
+      "data_testid": "theme-toggle",
+      "notes": "Present in header between Online indicator and My Profile button"
+    },
+    "dark_mode_persistence_localstorage": {
+      "status": "WORKING",
+      "notes": "Uses localStorage key 'darkMode', JSON.parse/stringify for boolean value"
+    },
+    "dark_mode_css_application": {
+      "status": "WORKING",
+      "notes": "CSS variables properly defined in index.css for .dark selector"
+    },
+    "late_early_reason_dialog": {
+      "status": "IMPLEMENTED",
+      "notes": "Dialog component implemented with checkLateEarly() function to detect late/early based on shift time and grace period. Dialog will appear when clocking in outside grace period with scheduled shift."
+    },
+    "late_early_reason_configuration": {
+      "status": "WORKING",
+      "notes": "Full configuration UI in Control Preferences > Login tab > Late & Early Clock-In Controls section"
+    }
+  },
+
+  "test_report_links": [],
+
+  "action_items": [],
+
+  "critical_code_review_comments": [
+    "ThemeContext.js: Properly implements localStorage persistence and system preference detection",
+    "ThemeToggle.js: Clean implementation with proper data-testid attribute",
+    "index.css: Complete CSS variable definitions for both light and dark modes",
+    "KioskClockScreen.js: LateEarlyReasonDialog component well-structured with proper props",
+    "ControlPreferences.js: Back button correctly uses navigate(-1) for proper browser history navigation"
+  ],
+
+  "updated_files": [],
+
+  "success_rate": {
+    "backend": "N/A (frontend-only testing)",
+    "frontend": "100% - All requested features working correctly"
+  },
+
+  "test_credentials": {
+    "Manager": "Demo Mode -> Manager -> PIN 1234",
+    "Staff": "Demo Mode -> Staff -> PIN 1234"
+  },
+
+  "seed_data_creation": "None - used existing test data",
+
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+
+  "context_for_next_testing_agent": "Three features tested and verified: 1) Control Preferences has Back arrow (ArrowLeft) button (data-testid='back-btn') replacing Home button - navigates back using navigate(-1). 2) Dark mode implemented via ThemeContext with ThemeToggle component (data-testid='theme-toggle') on ScanLogin, ManagerDashboard, and KioskClockScreen - uses localStorage for persistence. 3) Late/Early reason dialog configured in Control Preferences > Login tab, component implemented in KioskClockScreen.js (LateEarlyReasonDialog) - triggers when clock-in is outside grace period for scheduled shift."
+}

@@ -1,0 +1,113 @@
+{
+  "design_system": {
+    "name": "Comber Home Clocking System",
+    "description": "A strict visual clone of Frappe HRMS/Desk tailored for Kiosk usage.",
+    "theme": "light",
+    "typography": {
+      "font_family": {
+        "sans": ["Inter", "system-ui", "sans-serif"],
+        "mono": ["ui-monospace", "SFMono-Regular", "Menlo", "Monaco", "Consolas", "monospace"]
+      },
+      "scale": {
+        "h1": "text-3xl font-semibold tracking-tight text-gray-900",
+        "h2": "text-2xl font-semibold tracking-tight text-gray-900",
+        "h3": "text-xl font-medium text-gray-900",
+        "body": "text-sm leading-relaxed text-gray-600",
+        "small": "text-xs text-gray-500",
+        "kiosk_heading": "text-4xl font-bold text-gray-900",
+        "kiosk_button": "text-xl font-medium"
+      }
+    },
+    "colors": {
+      "background": "#F3F4F6",
+      "surface": "#FFFFFF",
+      "primary": {
+        "DEFAULT": "#2563EB",
+        "foreground": "#FFFFFF",
+        "hover": "#1D4ED8"
+      },
+      "secondary": {
+        "DEFAULT": "#F3F4F6",
+        "foreground": "#1F2937",
+        "hover": "#E5E7EB"
+      },
+      "muted": {
+        "DEFAULT": "#F9FAFB",
+        "foreground": "#6B7280"
+      },
+      "border": "#E5E7EB",
+      "input": "#F9FAFB",
+      "ring": "#2563EB",
+      "success": "#10B981",
+      "warning": "#F59E0B",
+      "error": "#EF4444"
+    },
+    "layout": {
+      "container": "max-w-7xl mx-auto px-4 sm:px-6 lg:px-8",
+      "sidebar_width": "w-64",
+      "header_height": "h-14",
+      "card_radius": "rounded-lg",
+      "input_radius": "rounded-md",
+      "button_radius": "rounded-md"
+    },
+    "shadows": {
+      "card": "shadow-sm",
+      "dropdown": "shadow-lg ring-1 ring-black ring-opacity-5",
+      "kiosk_button": "shadow-md hover:shadow-lg transition-shadow"
+    }
+  },
+  "components": {
+    "Button": {
+      "variants": {
+        "default": "bg-primary text-primary-foreground hover:bg-primary/90 h-9 px-4 py-2",
+        "outline": "border border-input bg-background hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2",
+        "ghost": "hover:bg-accent hover:text-accent-foreground h-9 px-4 py-2",
+        "kiosk_primary": "bg-primary text-primary-foreground hover:bg-primary/90 h-16 text-xl w-full shadow-md",
+        "kiosk_secondary": "bg-white border-2 border-gray-200 text-gray-900 hover:bg-gray-50 h-16 text-xl w-full"
+      }
+    },
+    "Card": {
+      "base": "bg-white border border-gray-200 rounded-lg shadow-sm",
+      "header": "px-6 py-4 border-b border-gray-100",
+      "content": "p-6"
+    },
+    "Input": {
+      "base": "flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+      "kiosk": "h-14 text-lg px-4 border-2"
+    },
+    "Badge": {
+      "base": "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+      "success": "border-transparent bg-green-100 text-green-800 hover:bg-green-200",
+      "warning": "border-transparent bg-yellow-100 text-yellow-800 hover:bg-yellow-200",
+      "gray": "border-transparent bg-gray-100 text-gray-800 hover:bg-gray-200"
+    }
+  },
+  "image_urls": {
+    "logo": "https://placehold.co/200x50/2563EB/FFFFFF?text=Comber+Home",
+    "staff_avatars": [
+      "https://images.unsplash.com/photo-1676552055618-22ec8cde399a?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHwxfHxudXJzZSUyMHBvcnRyYWl0JTIwcHJvZmVzc2lvbmFsJTIwc21pbGluZ3xlbnwwfHx8fDE3NzAyNDQ0NjV8MA&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1734002886107-168181bcd6a1?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHwyfHxudXJzZSUyMHBvcnRyYWl0JTIwcHJvZmVzc2lvbmFsJTIwc21pbGluZ3xlbnwwfHx8fDE3NzAyNDQ0NjV8MA&ixlib=rb-4.1.0&q=85",
+      "https://images.unsplash.com/photo-1757125736482-328a3cdd9743?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA2MTJ8MHwxfHNlYXJjaHwzfHxudXJzZSUyMHBvcnRyYWl0JTIwcHJvZmVzc2lvbmFsJTIwc21pbGluZ3xlbnwwfHx8fDE3NzAyNDQ0NjV8MA&ixlib=rb-4.1.0&q=85"
+    ],
+    "login_bg": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?auto=format&fit=crop&q=80"
+  },
+  "instructions_to_main_agent": [
+    "STRICTLY follow the Frappe HRMS visual style: Clean white cards on light gray background.",
+    "Use 'Inter' font for everything.",
+    "For Kiosk pages (Login, PIN), use the 'kiosk' variants of components (larger sizes).",
+    "For Dashboard pages, use the standard 'default' variants.",
+    "Ensure high contrast for all text (Gray-900 for headings, Gray-600 for body).",
+    "Do not use gradients or rounded-xl/2xl/3xl. Stick to rounded-md or rounded-lg.",
+    "Use Lucide React icons: 'LayoutDashboard' for Desk, 'Users' for Staff, 'Settings' for Admin.",
+    "Implement a 'Scan Login' page as the root ('/') with a mock camera view if real camera is not available.",
+    "Mock the backend data for Staff, Attendance, and Shifts.",
+    "Ensure the 'Offline' indicator is visible in the top bar."
+  ],
+  "universal_guidelines": [
+    "Avoid 'AI slop' - no generic centered layouts for the dashboard. Use a proper sidebar layout.",
+    "Use 'sonner' for toast notifications.",
+    "Use 'lucide-react' for icons.",
+    "Ensure all interactive elements have 'data-testid'.",
+    "Do not use 'transition: all'. Animate specific properties."
+  ]
+}

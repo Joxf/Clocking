@@ -1,0 +1,604 @@
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import axios from 'axios';
+import NotificationBell from '../components/NotificationBell';
+import MessagesInbox from '../components/MessagesInbox';
+import MonthlyCalendar from '../components/MonthlyCalendar';
+import TeamCalendar from '../components/TeamCalendar';
+import { LeaveRequestModal, DayRequestModal, ShiftSwapModal } from '../components/StaffProfileModals';
+import { RTWTrigger, RTWFormModal } from '../components/RTWComponents';
+import {
+  User,
+  Calendar,
+  Clock,
+  RefreshCcw,
+  LogOut,
+  WifiOff,
+  Wifi,
+  CalendarDays,
+  CalendarPlus,
+  CalendarMinus,
+  Stethoscope,
+  AlertCircle,
+  CheckCircle,
+  XCircle,
+  Plus,
+  Users,
+  Send,
+  Trash2,
+  MessageSquare,
+  UserCheck,
+  UserPlus
+} from 'lucide-react';
+
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+const API = `${BACKEND_URL}/api`;
+
+const IDLE_TIMEOUT = 300; // 5 minutes for staff profile
+
+const StaffProfile = () => {
+  const navigate = useNavigate();
+  const { user, token, logout, isOnline } = useAuth();
+  
+  const [activeTab, setActiveTab] = useState('overview');
+  const [profile, setProfile] = useState(null);
+  const [leaveRequests, setLeaveRequests] = useState([]);
+  const [dayRequests, setDayRequests] = useState([]);
+  const [shiftSwaps, setShiftSwaps] = useState({ shift_swaps: [], available_swaps: [], direct_requests: [] });
+  const [colleagues, setColleagues] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [pendingRTW, setPendingRTW] = useState(null);
+  const [showRTWModal, setShowRTWModal] = useState(false);
+  
+  // Modal states
+  const [showLeaveModal, setShowLeaveModal] = useState(false);
+  const [showDayRequestModal, setShowDayRequestModal] = useState(false);
+  const [showSwapModal, setShowSwapModal] = useState(false);
+  const [showMessagesModal, setShowMessagesModal] = useState(false);
+  const [selectedShift, setSelectedShift] = useState(null);
+
+  // Memoized modal callbacks to prevent re-renders from breaking form state
+  const closeLeaveModal = useCallback(() => setShowLeaveModal(false), []);
+  const closeDayRequestModal = useCallback(() => setShowDayRequestModal(false), []);
+  const closeSwapModal = useCallback(() => { setShowSwapModal(false); setSelectedShift(null); }, []);
+  const closeMessagesModal = useCallback(() => setShowMessagesModal(false), []);
+  const closeRTWModal = useCallback(() => setShowRTWModal(false), []);
+
+  // Memoized fetchAllData to use as stable onSuccess callback
+  const fetchAllData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const [profileRes, leaveRes, dayRes, swapRes, colleaguesRes, rtwRes] = await Promise.all([
+        axios.get(`${API}/staff/profile`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API}/leave-requests`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API}/day-requests`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API}/shift-swaps`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API}/staff/colleagues`, { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get(`${API}/rtw/my-pending`, { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      
+      setProfile(profileRes.data);
+      setLeaveRequests(leaveRes.data.leave_requests || []);
+      setDayRequests(dayRes.data.day_requests || []);
+      setShiftSwaps(swapRes.data);
+      setColleagues(colleaguesRes.data.colleagues || []);
+      setPendingRTW(rtwRes.data.rtw_forms?.[0] || null);
+    } catch (err) {
+      console.error('Failed to fetch data:', err);
+    } finally {
+      setLoading(false);
+    }
+  }, [token]);
+
+  useEffect(() => {
+    if (!user || !token) {
+      navigate('/');
+      return;
+    }
+    fetchAllData();
+  }, [user, token, navigate, fetchAllData]);
+
+  const handleLogout = useCallback(async () => {
+    await logout();
+    navigate('/');
+  }, [logout, navigate]);
+
+  const goToClockScreen = () => {
+    navigate('/staff');
+  };
+
+  // Memoize helper functions passed to modals to ensure stable references
+  const getJobTitleDisplay = useCallback((jobTitle) => {
+    const titles = {
+      nurse: 'Nurse',
+      senior_carer: 'Senior Carer',
+      carer: 'Carer',
+      activities: 'Activities Coordinator',
+      kitchen: 'Kitchen Staff',
+      maintenance: 'Maintenance'
+    };
+    return titles[jobTitle] || jobTitle;
+  }, []);
+
+  const formatDate = useCallback((dateStr) => {
+    return new Date(dateStr).toLocaleDateString('en-GB', { 
+      weekday: 'short', 
+      day: 'numeric', 
+      month: 'short' 
+    });
+  }, []);
+
+  const getStatusBadge = (status) => {
+    const styles = {
+      pending: 'frappe-badge-warning',
+      pending_acceptance: 'frappe-badge-warning',
+      accepted_pending_approval: 'frappe-badge-primary',
+      approved: 'frappe-badge-success',
+      rejected: 'frappe-badge-error',
+      cancelled: 'frappe-badge-gray',
+      open: 'frappe-badge-primary',
+      accepted: 'frappe-badge-success'
+    };
+    const labels = {
+      pending: 'Pending',
+      pending_acceptance: 'Awaiting Accept',
+      accepted_pending_approval: 'Awaiting Approval',
+      approved: 'Approved',
+      rejected: 'Rejected',
+      cancelled: 'Cancelled'
+    };
+    return <span className={`frappe-badge ${styles[status] || 'frappe-badge-gray'}`}>{labels[status] || status}</span>;
+  };
+
+  const handleAcceptSwap = async (swapId) => {
+    try {
+      await axios.post(`${API}/shift-swaps/${swapId}/accept`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      fetchAllData();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to accept swap');
+    }
+  };
+
+  const handleCancelSwap = async (swapId) => {
+    try {
+      await axios.post(`${API}/shift-swaps/${swapId}/cancel`, {}, { headers: { Authorization: `Bearer ${token}` } });
+      fetchAllData();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to cancel swap');
+    }
+  };
+
+  const handleCancelLeave = async (requestId) => {
+    try {
+      await axios.delete(`${API}/leave-requests/${requestId}`, { headers: { Authorization: `Bearer ${token}` } });
+      fetchAllData();
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Failed to cancel request');
+    }
+  };
+
+  const openSwapModal = (shift) => {
+    setSelectedShift(shift);
+    setShowSwapModal(true);
+  };
+
+  if (loading) {
+    return <div className="kiosk-container"><div className="frappe-spinner"></div></div>;
+  }
+
+  const availableSwaps = shiftSwaps.available_swaps || [];
+  const directRequests = shiftSwaps.direct_requests || [];
+  const mySwaps = shiftSwaps.shift_swaps || [];
+
+  return (
+    <div className="min-h-screen bg-gray-100">
+      {/* Header */}
+      <header className="frappe-header justify-between">
+        <div className="flex items-center gap-4">
+          <div className="w-8 h-8 rounded bg-blue-600 flex items-center justify-center">
+            <span className="text-white text-sm font-bold">CH</span>
+          </div>
+          <span className="font-semibold text-gray-900">Comber Home</span>
+          <span className="text-gray-400">|</span>
+          <span className="text-gray-600">My Profile</span>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <div className={`offline-indicator ${isOnline ? 'online' : ''}`}>
+            {isOnline ? <><Wifi size={14} /><span>Online</span></> : <><WifiOff size={14} /><span>Offline</span></>}
+          </div>
+
+          <button onClick={() => setShowMessagesModal(true)} className="p-2 rounded-lg hover:bg-gray-100" data-testid="messages-btn">
+            <MessageSquare size={20} className="text-gray-600" />
+          </button>
+
+          <NotificationBell />
+
+          <button onClick={() => navigate('/staff/requests')} className="frappe-btn frappe-btn-primary" data-testid="new-request-btn">
+            <Plus size={16} />
+            <span>New Request</span>
+          </button>
+
+          <button onClick={goToClockScreen} className="frappe-btn frappe-btn-secondary" data-testid="go-to-clock-btn">
+            <Clock size={16} />
+            <span>Clock In/Out</span>
+          </button>
+
+          <button data-testid="logout-btn" onClick={handleLogout} className="frappe-btn frappe-btn-secondary">
+            <LogOut size={16} />
+            <span>Logout</span>
+          </button>
+        </div>
+      </header>
+
+      {/* Sidebar */}
+      <aside className="frappe-sidebar">
+        <div className="frappe-sidebar-section">Profile</div>
+        <button onClick={() => setActiveTab('overview')} className={`frappe-sidebar-item w-full text-left ${activeTab === 'overview' ? 'active' : ''}`}>
+          <User size={18} /><span>Overview</span>
+        </button>
+        
+        <div className="frappe-sidebar-section">Schedule</div>
+        <button onClick={() => setActiveTab('rota')} className={`frappe-sidebar-item w-full text-left ${activeTab === 'rota' ? 'active' : ''}`}>
+          <CalendarDays size={18} /><span>My Rota</span>
+        </button>
+        <button onClick={() => setActiveTab('swaps')} className={`frappe-sidebar-item w-full text-left ${activeTab === 'swaps' ? 'active' : ''}`}>
+          <RefreshCcw size={18} /><span>Shift Swaps</span>
+          {(availableSwaps.length + directRequests.length) > 0 && (
+            <span className="ml-auto bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
+              {availableSwaps.length + directRequests.length}
+            </span>
+          )}
+        </button>
+        
+        <div className="frappe-sidebar-section">Time Off</div>
+        <button onClick={() => setActiveTab('leave')} className={`frappe-sidebar-item w-full text-left ${activeTab === 'leave' ? 'active' : ''}`}>
+          <Calendar size={18} /><span>Annual Leave</span>
+        </button>
+        <button onClick={() => setActiveTab('teamCalendar')} className={`frappe-sidebar-item w-full text-left ${activeTab === 'teamCalendar' ? 'active' : ''}`}>
+          <Users size={18} /><span>Team Calendar</span>
+        </button>
+        <button onClick={() => setActiveTab('sick')} className={`frappe-sidebar-item w-full text-left ${activeTab === 'sick' ? 'active' : ''}`}>
+          <Stethoscope size={18} /><span>Sick Leave</span>
+        </button>
+        <button onClick={() => setActiveTab('dayRequests')} className={`frappe-sidebar-item w-full text-left ${activeTab === 'dayRequests' ? 'active' : ''}`}>
+          <CalendarPlus size={18} /><span>Day Requests</span>
+        </button>
+      </aside>
+
+      {/* Main content */}
+      <main className="frappe-main">
+        {/* RTW Trigger - Shows if staff has pending RTW */}
+        {pendingRTW && (
+          <RTWTrigger rtw={pendingRTW} onOpenForm={() => setShowRTWModal(true)} />
+        )}
+
+        {/* Overview Tab */}
+        {activeTab === 'overview' && profile && (
+          <>
+            <h1 className="frappe-page-title">Welcome, {profile.employee.first_name}</h1>
+            
+            <div className="frappe-card mb-6">
+              <div className="frappe-card-content">
+                <div className="flex items-center gap-6">
+                  <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center">
+                    <User size={40} className="text-blue-600" />
+                  </div>
+                  <div>
+                    <h2 className="text-2xl font-semibold text-gray-900">{profile.employee.first_name} {profile.employee.last_name}</h2>
+                    <p className="text-gray-500">{getJobTitleDisplay(profile.employee.job_title)}</p>
+                    <div className="flex gap-2 mt-2">
+                      <span className="frappe-badge frappe-badge-primary">{profile.employee.employee_id}</span>
+                      <span className={`frappe-badge ${profile.employee.employment_type === 'agency' ? 'frappe-badge-warning' : 'frappe-badge-gray'}`}>
+                        {profile.employee.employment_type === 'agency' ? 'Agency' : 'Permanent'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-4 gap-4 mb-6">
+              <div className="frappe-stat-card">
+                <div className="frappe-stat-label">Annual Leave Remaining</div>
+                <div className="frappe-stat-value text-green-600">{profile.leave_balance.annual_remaining}</div>
+                <div className="text-xs text-gray-500">of {profile.leave_balance.annual_total} days</div>
+              </div>
+              <div className="frappe-stat-card">
+                <div className="frappe-stat-label">Upcoming Shifts</div>
+                <div className="frappe-stat-value text-blue-600">{profile.upcoming_shifts}</div>
+              </div>
+              <div className="frappe-stat-card">
+                <div className="frappe-stat-label">Pending Requests</div>
+                <div className="frappe-stat-value text-orange-600">{profile.pending_counts.leave_requests + profile.pending_counts.day_requests}</div>
+              </div>
+              <div className="frappe-stat-card">
+                <div className="frappe-stat-label">Open Swap Requests</div>
+                <div className="frappe-stat-value">{profile.pending_counts.open_swaps}</div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <button onClick={() => setShowLeaveModal(true)} className="frappe-card p-6 text-left hover:bg-gray-50 transition-colors">
+                <CalendarMinus size={24} className="text-blue-600 mb-3" />
+                <h3 className="font-semibold text-gray-900 mb-1">Request Leave</h3>
+                <p className="text-sm text-gray-500">Book annual or other leave</p>
+              </button>
+              <button onClick={() => setShowDayRequestModal(true)} className="frappe-card p-6 text-left hover:bg-gray-50 transition-colors">
+                <CalendarPlus size={24} className="text-purple-600 mb-3" />
+                <h3 className="font-semibold text-gray-900 mb-1">Request Day On/Off</h3>
+                <p className="text-sm text-gray-500">Request specific days</p>
+              </button>
+              <button onClick={() => setActiveTab('swaps')} className="frappe-card p-6 text-left hover:bg-gray-50 transition-colors">
+                <RefreshCcw size={24} className="text-green-600 mb-3" />
+                <h3 className="font-semibold text-gray-900 mb-1">View Shift Swaps</h3>
+                <p className="text-sm text-gray-500">See available swaps</p>
+              </button>
+            </div>
+          </>
+        )}
+
+        {/* Rota Tab - Monthly Calendar */}
+        {activeTab === 'rota' && (
+          <>
+            <h1 className="frappe-page-title">My Rota</h1>
+            <MonthlyCalendar onSwapClick={openSwapModal} />
+          </>
+        )}
+
+        {/* Shift Swaps Tab */}
+        {activeTab === 'swaps' && (
+          <>
+            <h1 className="frappe-page-title">Shift Swaps</h1>
+            
+            {/* Direct requests to me */}
+            {directRequests.length > 0 && (
+              <div className="frappe-card mb-6">
+                <div className="frappe-card-header flex items-center gap-2 bg-orange-50">
+                  <UserPlus size={18} className="text-orange-600" />
+                  <span>Direct Requests to You</span>
+                </div>
+                <div className="frappe-card-content">
+                  <div className="space-y-3">
+                    {directRequests.map((swap) => (
+                      <div key={swap.id} className="p-4 border border-orange-200 bg-orange-50 rounded-lg flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">{swap.requester_name} wants to swap with you</p>
+                          <p className="text-sm text-gray-500">{formatDate(swap.shift_date)} • {swap.shift_start} - {swap.shift_end}</p>
+                          {swap.reason && <p className="text-sm text-gray-400 mt-1">"{swap.reason}"</p>}
+                        </div>
+                        <button onClick={() => handleAcceptSwap(swap.id)} className="frappe-btn frappe-btn-primary">Accept Swap</button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            
+            {/* Available swaps from others */}
+            <div className="frappe-card mb-6">
+              <div className="frappe-card-header flex items-center gap-2">
+                <Users size={18} />
+                <span>Available Swaps from Colleagues</span>
+              </div>
+              <div className="frappe-card-content">
+                {availableSwaps.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">No open shift swaps available</p>
+                ) : (
+                  <div className="space-y-3">
+                    {availableSwaps.map((swap) => (
+                      <div key={swap.id} className="p-4 border border-gray-200 rounded-lg flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">{swap.requester_name}</p>
+                          <p className="text-sm text-gray-500">{formatDate(swap.shift_date)} • {swap.shift_start} - {swap.shift_end}</p>
+                          {swap.reason && <p className="text-sm text-gray-400 mt-1">"{swap.reason}"</p>}
+                        </div>
+                        <button onClick={() => handleAcceptSwap(swap.id)} className="frappe-btn frappe-btn-primary">Accept Swap</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* My swap requests */}
+            <div className="frappe-card">
+              <div className="frappe-card-header">My Swap Requests</div>
+              <div className="frappe-card-content">
+                {mySwaps.length === 0 ? (
+                  <p className="text-gray-500 text-center py-4">You haven't posted any swap requests</p>
+                ) : (
+                  <div className="space-y-3">
+                    {mySwaps.map((swap) => (
+                      <div key={swap.id} className="p-4 border border-gray-200 rounded-lg flex items-center justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900">{formatDate(swap.shift_date)} • {swap.shift_start} - {swap.shift_end}</p>
+                          <div className="flex items-center gap-2 mt-1">
+                            {getStatusBadge(swap.status)}
+                            {swap.accepted_by_name && <span className="text-sm text-green-600">Accepted by {swap.accepted_by_name}</span>}
+                            {swap.swap_type === 'direct' && swap.target_name && <span className="text-sm text-blue-600">Sent to {swap.target_name}</span>}
+                          </div>
+                        </div>
+                        {['pending_acceptance', 'accepted_pending_approval'].includes(swap.status) && (
+                          <button onClick={() => handleCancelSwap(swap.id)} className="frappe-btn frappe-btn-secondary text-red-600">
+                            <Trash2 size={14} />Cancel
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Leave Tab */}
+        {activeTab === 'leave' && (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="frappe-page-title mb-0">Annual Leave</h1>
+              <button onClick={() => setShowLeaveModal(true)} className="frappe-btn frappe-btn-primary"><Plus size={16} /><span>Request Leave</span></button>
+            </div>
+
+            {profile && (
+              <div className="frappe-card mb-6">
+                <div className="frappe-card-content">
+                  <div className="grid grid-cols-3 gap-4">
+                    <div className="text-center p-4 bg-blue-50 rounded-lg">
+                      <div className="text-3xl font-bold text-blue-700">{profile.leave_balance.annual_total}</div>
+                      <div className="text-sm text-blue-600">Total Entitlement</div>
+                    </div>
+                    <div className="text-center p-4 bg-orange-50 rounded-lg">
+                      <div className="text-3xl font-bold text-orange-700">{profile.leave_balance.annual_used}</div>
+                      <div className="text-sm text-orange-600">Days Used</div>
+                    </div>
+                    <div className="text-center p-4 bg-green-50 rounded-lg">
+                      <div className="text-3xl font-bold text-green-700">{profile.leave_balance.annual_remaining}</div>
+                      <div className="text-sm text-green-600">Days Remaining</div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            <div className="frappe-card">
+              <div className="frappe-card-header">Leave Requests</div>
+              <div className="overflow-x-auto">
+                <table className="frappe-table">
+                  <thead><tr><th>Type</th><th>Start</th><th>End</th><th>Status</th><th>Actions</th></tr></thead>
+                  <tbody>
+                    {leaveRequests.filter(r => r.leave_type === 'annual').length === 0 ? (
+                      <tr><td colSpan={5} className="text-center py-8 text-gray-500">No annual leave requests</td></tr>
+                    ) : (
+                      leaveRequests.filter(r => r.leave_type === 'annual').map((req) => (
+                        <tr key={req.id}>
+                          <td><span className="frappe-badge frappe-badge-primary">Annual</span></td>
+                          <td>{formatDate(req.start_date)}</td>
+                          <td>{formatDate(req.end_date)}</td>
+                          <td>{getStatusBadge(req.status)}</td>
+                          <td>{req.status === 'pending' && <button onClick={() => handleCancelLeave(req.id)} className="frappe-btn frappe-btn-secondary text-xs py-1 px-2 text-red-600">Cancel</button>}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Team Calendar Tab */}
+        {activeTab === 'teamCalendar' && (
+          <>
+            <h1 className="frappe-page-title">Team Availability Calendar</h1>
+            <TeamCalendar />
+          </>
+        )}
+
+        {/* Sick Leave Tab */}
+        {activeTab === 'sick' && (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="frappe-page-title mb-0">Sick Leave & Absences</h1>
+              <button onClick={() => setShowLeaveModal(true)} className="frappe-btn frappe-btn-primary"><Stethoscope size={16} /><span>Record Absence</span></button>
+            </div>
+            <div className="frappe-card">
+              <div className="frappe-card-header">Sick Leave Records</div>
+              <div className="overflow-x-auto">
+                <table className="frappe-table">
+                  <thead><tr><th>Type</th><th>Start</th><th>End</th><th>Reason</th><th>Status</th></tr></thead>
+                  <tbody>
+                    {leaveRequests.filter(r => ['sick', 'compassionate', 'unpaid'].includes(r.leave_type)).length === 0 ? (
+                      <tr><td colSpan={5} className="text-center py-8 text-gray-500">No sick leave records</td></tr>
+                    ) : (
+                      leaveRequests.filter(r => ['sick', 'compassionate', 'unpaid'].includes(r.leave_type)).map((req) => (
+                        <tr key={req.id}>
+                          <td><span className={`frappe-badge ${req.leave_type === 'sick' ? 'frappe-badge-error' : 'frappe-badge-warning'}`}>{req.leave_type}</span></td>
+                          <td>{formatDate(req.start_date)}</td>
+                          <td>{formatDate(req.end_date)}</td>
+                          <td className="text-gray-500">{req.reason || '-'}</td>
+                          <td>{getStatusBadge(req.status)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* Day Requests Tab */}
+        {activeTab === 'dayRequests' && (
+          <>
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="frappe-page-title mb-0">Day On/Off Requests</h1>
+              <button onClick={() => setShowDayRequestModal(true)} className="frappe-btn frappe-btn-primary"><Plus size={16} /><span>New Request</span></button>
+            </div>
+            <div className="frappe-card">
+              <div className="frappe-card-header">Your Requests</div>
+              <div className="overflow-x-auto">
+                <table className="frappe-table">
+                  <thead><tr><th>Type</th><th>Date</th><th>Reason</th><th>Status</th></tr></thead>
+                  <tbody>
+                    {dayRequests.length === 0 ? (
+                      <tr><td colSpan={4} className="text-center py-8 text-gray-500">No day requests</td></tr>
+                    ) : (
+                      dayRequests.map((req) => (
+                        <tr key={req.id}>
+                          <td><span className={`frappe-badge ${req.request_type === 'day_on' ? 'frappe-badge-success' : 'frappe-badge-primary'}`}>{req.request_type === 'day_on' ? 'Day On' : 'Day Off'}</span></td>
+                          <td>{formatDate(req.requested_date)}</td>
+                          <td className="text-gray-500">{req.reason || '-'}</td>
+                          <td>{getStatusBadge(req.status)}</td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </>
+        )}
+      </main>
+
+      {/* Modals - Using external memoized components with stable callback references */}
+      {showLeaveModal && (
+        <LeaveRequestModal 
+          token={token} 
+          onClose={closeLeaveModal} 
+          onSuccess={fetchAllData}
+        />
+      )}
+      {showDayRequestModal && (
+        <DayRequestModal 
+          token={token} 
+          onClose={closeDayRequestModal} 
+          onSuccess={fetchAllData}
+        />
+      )}
+      {showSwapModal && selectedShift && (
+        <ShiftSwapModal 
+          token={token}
+          selectedShift={selectedShift}
+          colleagues={colleagues}
+          onClose={closeSwapModal} 
+          onSuccess={fetchAllData}
+          getJobTitleDisplay={getJobTitleDisplay}
+          formatDate={formatDate}
+        />
+      )}
+      {showMessagesModal && <MessagesInbox onClose={closeMessagesModal} />}
+      {showRTWModal && pendingRTW && (
+        <RTWFormModal
+          rtw={pendingRTW}
+          onClose={closeRTWModal}
+          onUpdate={fetchAllData}
+        />
+      )}
+    </div>
+  );
+};
+
+export default StaffProfile;

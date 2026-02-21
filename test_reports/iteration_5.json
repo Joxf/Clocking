@@ -1,0 +1,88 @@
+{
+  "summary": "Phase 4C & 4D testing completed. All 16 backend API tests passed (100%). All frontend features verified: Leave & Sickness tab with balance calculations, Operational tab with heatmap and under-coverage alerts, Staff List notes modal with CRUD.",
+
+  "backend_issues": {
+    "critical": [],
+    "minor": []
+  },
+
+  "frontend_issues": {
+    "ui_bugs": [],
+    "integration_issues": [],
+    "design_issues": [
+      {
+        "screen": "Manager Dashboard",
+        "issues": ["60-second idle timeout may auto-logout during testing"]
+      }
+    ]
+  },
+
+  "passed_tests": {
+    "backend_api": [
+      "GET /api/leave/overview?year=2026 - Returns staff with annual_used, annual_remaining, pending_requests, sick_days, sick_episodes, rtw_needed",
+      "GET /api/leave/overview - 28 day annual entitlement verified for all staff",
+      "GET /api/leave/overview - Balance calculation: remaining = entitlement - used",
+      "GET /api/leave/sickness-trends/{employee_id} - Returns episodes, total_days, bradford_factor",
+      "GET /api/leave/sickness-trends - Bradford formula verified: S^2 * D",
+      "PUT /api/leave/mark-rtw/{leave_id} - Endpoint exists (returns 404 for missing ID)",
+      "GET /api/manager/notes/{employee_id} - Returns notes list",
+      "POST /api/manager/notes/{employee_id}?content=test - Creates note with id, content, timestamp",
+      "DELETE /api/manager/notes/{note_id} - Deletes note (404 for missing)",
+      "GET /api/operational/heatmap?year=2026&month=2 - Returns 28 days with E/L/N/LD per day",
+      "GET /api/operational/heatmap - Each shift has total, nurses, carers, baseline_met",
+      "GET /api/operational/under-coverage - Returns alerts with date, shift, time, nurses/carers needed",
+      "All endpoints require authentication (401 without token)",
+      "Manager role authorization verified for all Phase 4C/4D endpoints"
+    ],
+    "frontend_flows": [
+      "Manager demo login: Manager button → PIN 1234 → /manager dashboard",
+      "Leave & Sickness tab: data-testid='leave-nav' navigates to leave management",
+      "Leave tab: Shows all staff with Annual Used, Remaining, Pending, Sick Days, Sick Eps, RTW columns",
+      "Leave tab: Emma Thompson shows 6/28 used and 22 remaining (approved leaves in seed data)",
+      "Leave tab: Year selector (2026) with < > navigation",
+      "Leave tab: Expand arrow shows leave request list for staff member (approved/pending status, dates, reason)",
+      "Operational tab: data-testid='operational-nav' navigates to operational overview",
+      "Operational tab: Under-Coverage Alerts box shows 50 alerts for next 30 days",
+      "Operational tab: Alerts show date, shift time, nurses/carers needed vs available (e.g., 1/2N 1/6C)",
+      "Operational tab: Staffing Heatmap grid with E/L/N/LD rows × days columns",
+      "Operational tab: Heatmap color-coded (red=below baseline, green=adequate)",
+      "Operational tab: Month navigation (February 2026) with arrows",
+      "Staff List tab: Notes button per staff member (data-testid='notes-btn-{employee_id}')",
+      "Staff List: Clicking Notes opens modal with data-testid='notes-modal'",
+      "Notes modal: Shows existing notes with timestamp (created_by_name — date)",
+      "Notes modal: Textarea input (data-testid='note-input') + Add button (data-testid='add-note-btn')",
+      "Notes modal: Adding note persists and displays immediately in modal"
+    ]
+  },
+
+  "test_report_links": [
+    "/app/backend/tests/test_phase4cd_api.py",
+    "/app/test_reports/pytest/phase4cd_results.xml"
+  ],
+
+  "action_items": [],
+
+  "critical_code_review_comments": [],
+
+  "updated_files": [
+    "/app/backend/tests/test_phase4cd_api.py"
+  ],
+
+  "success_rate": {
+    "backend": "100% (16/16 tests passed)",
+    "frontend": "100% (All 17 flows tested successfully)"
+  },
+
+  "test_credentials": {
+    "manager": "MGR001, PIN: 1234",
+    "admin": "ADM001, PIN: 1234",
+    "staff": "NRS001, PIN: 1234"
+  },
+
+  "seed_data_creation": "Used existing seed data from previous phases. Emma Thompson has 2 approved annual leaves (Feb 15-17 and Mar 6-8) totaling 6 days.",
+
+  "retest_needed": false,
+  "should_main_agent_self_test": false,
+
+  "context_for_next_testing_agent": "Phase 4C & 4D fully tested. Leave Overview API returns 28-day entitlement, calculates used/remaining from approved annual leave, counts sick episodes and days, flags RTW needed for recent sick leave. Sickness trends returns Bradford factor (S^2*D). Manager notes full CRUD working. Operational heatmap returns per-day per-shift staffing with baseline_met flag. Under-coverage alerts return future shifts below baseline (2 nurses + 6 carers). Frontend: Leave tab shows expandable staff rows with leave requests, Operational tab has scrollable alerts and color-coded heatmap, Staff List has Notes modal per employee. All data-testid attributes in place for testing."
+}

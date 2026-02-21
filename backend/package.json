@@ -1,0 +1,20 @@
+{
+  "name": "carehome-clocking-backend",
+  "version": "1.0.0",
+  "description": "CareHome Clocking System Backend - Node.js",
+  "main": "src/server.js",
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "mongoose": "^8.0.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "jsonwebtoken": "^9.0.2",
+    "bcryptjs": "^2.4.3",
+    "otplib": "^12.0.1",
+    "uuid": "^9.0.0"
+  }
+}
